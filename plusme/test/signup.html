@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PlusMe Signup</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-r from-purple-200 via-pink-100 to-yellow-100 min-h-screen flex items-center justify-center">
+
+  <div class="w-full max-w-md bg-white shadow-lg rounded-lg p-6">
+    <h1 class="text-3xl font-bold text-center mb-6 text-purple-700">🐣 Join PlusMe</h1>
+
+    <div class="space-y-3">
+      <input id="name" placeholder="Your Name" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400" />
+      <input id="username" placeholder="Cool Username" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400" />
+      <input id="email" type="email" placeholder="Email Address" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400" />
+      <input id="password" type="password" placeholder="Secret Password" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400" />
+      <input id="bio" placeholder="Bio (optional)" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400" />
+    </div>
+
+    <button onclick="signup()" class="mt-4 w-full bg-purple-600 text-white py-2 rounded hover:bg-purple-700 transition duration-200 hover:scale-105">
+      🌟 Signup
+    </button>
+
+    <div id="message" class="mt-4 text-center text-sm"></div>
+  </div>
+
+  <!-- Verification Modal -->
+  <div id="verifyModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div class="bg-white p-6 rounded-lg w-full max-w-sm shadow-lg">
+      <h2 class="text-xl font-bold mb-4 text-center text-green-700">🔐 Verify Email</h2>
+      <input id="verifyCodeInput" placeholder="Enter Code" class="w-full border rounded px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-green-400" />
+      
+      <button onclick="verifyUser()" class="bg-green-600 text-white w-full py-2 rounded hover:bg-green-700 transition duration-200 hover:scale-105">
+        ✅ Verify
+      </button>
+
+      <button onclick="resendCode()" class="mt-2 text-blue-600 hover:underline w-full text-center text-sm">
+        🔄 Resend Code
+      </button>
+
+      <button onclick="closeVerifyModal()" class="mt-2 text-gray-500 hover:underline w-full text-center text-sm">
+        ❌ Cancel
+      </button>
+    </div>
+  </div>
+
+  <script>
+    let signupToken = null;
+    const messageEl = document.getElementById("message");
+
+    function showMessage(text, isError = false) {
+      messageEl.textContent = text;
+      messageEl.className = "mt-4 text-center text-sm " + (isError ? "text-red-600" : "text-green-600");
+    }
+
+    function signup() {
+      const name = document.getElementById("name").value.trim();
+      const username = document.getElementById("username").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const bio = document.getElementById("bio").value.trim();
+
+      if (!name || !username || !email || !password) {
+        showMessage("⚠️ Name, username, email, and password are required.", true);
+        return;
+      }
+
+      fetch("http://localhost:8000/api/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, username, email, password, bio }),
+      })
+        .then(res => res.json().then(json => ({ ok: res.ok, json })))
+        .then(({ ok, json }) => {
+          if (ok) {
+            signupToken = json.signupToken;
+            showMessage("✔️ Signup successful. Check your email.");
+            openVerifyModal();
+          } else {
+            showMessage(json.error || "Signup failed.", true);
+          }
+        })
+        .catch(() => showMessage("❌ Server error.", true));
+    }
+
+    function openVerifyModal() {
+      document.getElementById("verifyModal").classList.remove("hidden");
+    }
+
+    function closeVerifyModal() {
+      document.getElementById("verifyModal").classList.add("hidden");
+    }
+
+    function verifyUser() {
+      const code = document.getElementById("verifyCodeInput").value.trim();
+      if (!signupToken || !code) {
+        showMessage("Missing code or token.", true);
+        return;
+      }
+
+      fetch("http://localhost:8000/api/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signupToken, code }),
+      })
+        .then(res => res.json().then(json => ({ ok: res.ok, json })))
+        .then(({ ok, json }) => {
+          if (ok) {
+            showMessage("🎉 Verified successfully.");
+            closeVerifyModal();
+          } else {
+            showMessage(json.error || "Wrong code.", true);
+          }
+        })
+        .catch(() => showMessage("Verification failed.", true));
+    }
+
+    function resendCode() {
+      if (!signupToken) {
+        showMessage("Signup token missing.", true);
+        return;
+      }
+
+      fetch("http://localhost:8000/api/resend-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signupToken }),
+      })
+        .then(res => res.json().then(json => ({ ok: res.ok, json })))
+        .then(({ ok, json }) => {
+          if (ok) {
+            showMessage("🔄 Code resent to your email.");
+          } else {
+            showMessage(json.error || "Could not resend code.", true);
+          }
+        })
+        .catch(() => showMessage("Server issue while resending.", true));
+    }
+  </script>
+</body>
+</html>

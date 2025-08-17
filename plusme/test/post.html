@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Student Social MVP — Like/Save/Comment Tester</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .fade { transition: all .15s ease; }
+    .card-hover:hover { transform: translateY(-3px); }
+    .mono { font-family: ui-monospace, SFMono-Regular, monospace; }
+    .badge { padding: 2px 8px; border-radius: 999px; font-size: 10px; }
+    .small-btn { font-size: 12px; padding: 4px 12px; }
+    #commentsList::-webkit-scrollbar {
+      width: 6px;
+    }
+    #commentsList::-webkit-scrollbar-thumb {
+      background-color: #a5b4fc; /* Indigo 400 */
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-white min-h-screen py-12 flex justify-center">
+
+  <div class="w-full max-w-3xl space-y-10 px-6">
+    <!-- Header / Auth -->
+    <section class="bg-white rounded-2xl shadow p-8 flex flex-col gap-5">
+      <header class="flex justify-between items-center">
+        <div>
+          <h1 class="text-3xl font-bold text-indigo-600">Student Social MVP Tester</h1>
+          <p class="text-sm text-gray-600 mt-1">Login, then like/save/comment by post ID.</p>
+        </div>
+        <div class="flex items-center gap-5 flex-wrap max-w-[350px]">
+          <div id="tokenDisplay" class="hidden bg-gray-100 px-3 py-2 rounded-lg mono text-xs max-w-full break-words"></div>
+          <div id="profileSummary" class="hidden flex gap-4 items-center bg-indigo-50 px-5 py-3 rounded-lg shadow-sm">
+            <div class="flex flex-col">
+              <div class="font-semibold text-indigo-700" id="profileName"></div>
+              <div class="text-xs text-indigo-500" id="profileUsername"></div>
+            </div>
+            <button id="logoutBtn" class="text-red-600 text-sm underline hover:text-red-700">Logout</button>
+          </div>
+        </div>
+      </header>
+
+      <form id="loginForm" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div>
+          <label for="identifier" class="block text-xs font-medium mb-1">Email or Username</label>
+          <input id="identifier" required type="text" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div>
+          <label for="password" class="block text-xs font-medium mb-1">Password</label>
+          <input id="password" required type="password" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div class="flex flex-col justify-end">
+          <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded font-semibold hover:bg-indigo-700 transition">Log in</button>
+          <p id="loginResponse" class="text-sm mt-2"></p>
+        </div>
+      </form>
+    </section>
+
+    <!-- Post Control Panel -->
+    <section class="bg-white rounded-2xl shadow p-8 space-y-6">
+      <h2 class="text-xl font-semibold">Test Post: Like / Save / Comment</h2>
+
+      <!-- Post ID + Load -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+        <div>
+          <label for="testPostId" class="block text-xs font-medium mb-1">Post ID</label>
+          <input id="testPostId" type="text" placeholder="UUID of post" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <button id="loadPostState" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 transition small-btn self-stretch md:self-auto">Load Status</button>
+        <div id="currentPostTitle" class="text-sm font-medium text-gray-700 truncate md:col-span-2"></div>
+      </div>
+
+      <!-- Like, Save, Comment Count -->
+      <div class="flex flex-wrap gap-6 items-center">
+        <div class="flex gap-2 items-center">
+          <button id="likeButton" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded flex gap-2 items-center small-btn transition">
+            👍 <span id="likeCount" class="font-semibold">0</span>
+          </button>
+          <span id="likedIndicator" class="badge bg-blue-100 text-blue-800 hidden">liked</span>
+        </div>
+        <div class="flex gap-2 items-center">
+          <button id="saveButton" class="bg-gray-900 hover:bg-gray-800 text-white px-5 py-2 rounded small-btn transition">💾 Save</button>
+          <span id="savedIndicator" class="badge bg-green-100 text-green-800 hidden">saved</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="font-semibold text-gray-700">Comments:</span>
+          <span id="commentCount" class="text-indigo-600 font-semibold">0</span>
+        </div>
+        <div>
+          <button id="viewLikers" class="underline text-sm hover:text-indigo-600 transition">View likers</button>
+        </div>
+      </div>
+
+      <!-- Comment Input -->
+      <div class="border rounded-lg p-5 bg-gray-50">
+        <div class="flex justify-between items-center mb-3">
+          <div class="font-semibold text-gray-700">Comments</div>
+          <div class="text-xs text-gray-500">Create / edit / delete</div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
+          <input id="newCommentInput" type="text" placeholder="Write a comment..." class="col-span-3 w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <button id="addCommentBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded small-btn transition">Add</button>
+          <button id="clearCommentBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded small-btn transition">Clear</button>
+        </div>
+
+        <div id="commentsList" class="space-y-3 max-h-[280px] overflow-y-auto"></div>
+      </div>
+
+      <!-- Debug output -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white border rounded p-4">
+          <div class="font-semibold mb-2">Like / Save Raw Data</div>
+          <pre id="statusRaw" class="text-xs bg-gray-100 p-2 rounded max-h-[240px] overflow-auto"></pre>
+        </div>
+        <div class="bg-white border rounded p-4">
+          <div class="font-semibold mb-2">Comments Raw Data</div>
+          <pre id="commentsRaw" class="text-xs bg-gray-100 p-2 rounded max-h-[240px] overflow-auto"></pre>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    let authToken = '';
+    let currentUser = null;
+
+    const loginForm = document.getElementById('loginForm');
+    const loginResponse = document.getElementById('loginResponse');
+    const tokenDisplay = document.getElementById('tokenDisplay');
+    const profileSummary = document.getElementById('profileSummary');
+    const profileName = document.getElementById('profileName');
+    const profileUsername = document.getElementById('profileUsername');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    const testPostIdInput = document.getElementById('testPostId');
+    const loadPostStateBtn = document.getElementById('loadPostState');
+    const likeButton = document.getElementById('likeButton');
+    const likeCountSpan = document.getElementById('likeCount');
+    const likedIndicator = document.getElementById('likedIndicator');
+    const saveButton = document.getElementById('saveButton');
+    const savedIndicator = document.getElementById('savedIndicator');
+    const viewLikersBtn = document.getElementById('viewLikers');
+    const newCommentInput = document.getElementById('newCommentInput');
+    const addCommentBtn = document.getElementById('addCommentBtn');
+    const clearCommentBtn = document.getElementById('clearCommentBtn');
+    const commentsList = document.getElementById('commentsList');
+    const statusRaw = document.getElementById('statusRaw');
+    const commentsRaw = document.getElementById('commentsRaw');
+    const currentPostTitle = document.getElementById('currentPostTitle');
+    const commentCountSpan = document.getElementById('commentCount');
+
+    function authHeaders() {
+      return { Authorization: 'Bearer ' + authToken };
+    }
+
+    function setUserFromToken(token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        currentUser = payload.id || payload.user?.id || null;
+        profileName.textContent = payload.name || '';
+        profileUsername.textContent = payload.username ? '@' + payload.username : '';
+        profileSummary.classList.remove('hidden');
+      } catch {}
+    }
+
+    loginForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      loginResponse.textContent = 'Logging in...';
+      loginResponse.className = 'text-sm text-gray-600';
+      const identifier = document.getElementById('identifier').value.trim();
+      const password = document.getElementById('password').value;
+      try {
+        const res = await fetch('http://localhost:8000/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier, password })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          loginResponse.textContent = data.error || 'login failed';
+          loginResponse.className = 'text-sm text-red-600';
+          return;
+        }
+        authToken = data.token;
+        tokenDisplay.textContent = authToken;
+        tokenDisplay.classList.remove('hidden');
+        loginResponse.textContent = 'Logged in';
+        loginResponse.className = 'text-sm text-green-600';
+        setUserFromToken(authToken);
+        if (testPostIdInput.value) loadPostState();
+      } catch (err) {
+        loginResponse.textContent = 'Network error';
+        loginResponse.className = 'text-sm text-red-600';
+      }
+    });
+
+    logoutBtn.addEventListener('click', () => {
+      authToken = '';
+      currentUser = null;
+      tokenDisplay.classList.add('hidden');
+      profileSummary.classList.add('hidden');
+      loginResponse.textContent = '';
+    });
+
+    async function loadPostState() {
+      const postId = testPostIdInput.value.trim();
+      if (!postId) return alert('postId required');
+
+      try {
+        const [likeRes, savedRes, commentsRes, commentCountRes] = await Promise.all([
+          fetch(`http://localhost:8000/api/${postId}/likes/count`),
+          fetch(`http://localhost:8000/api/${postId}/saved`, { headers: authHeaders() }),
+          fetch(`http://localhost:8000/api/${postId}/comments`),
+          fetch(`http://localhost:8000/api/${postId}/comments/count`),
+        ]);
+
+        const likeData = await likeRes.json();
+        const savedData = await savedRes.json();
+        const commentsData = await commentsRes.json();
+        const commentCountData = await commentCountRes.json();
+
+        likeCountSpan.textContent = likeData.likes ?? 0;
+        commentCountSpan.textContent = commentCountData.comments ?? 0;
+
+        if (savedRes.ok && savedData.saved) {
+          savedIndicator.classList.remove('hidden');
+          saveButton.textContent = '💾 Unsave';
+        } else {
+          savedIndicator.classList.add('hidden');
+          saveButton.textContent = '💾 Save';
+        }
+
+        renderComments(commentsData.data || []);
+        commentsRaw.textContent = JSON.stringify(commentsData, null, 2);
+
+        statusRaw.textContent = JSON.stringify({
+          likeCount: likeData,
+          saved: savedData
+        }, null, 2);
+
+        currentPostTitle.textContent = `Post ID: ${postId}`;
+      } catch (e) {
+        console.error(e);
+        alert('Failed loading state');
+      }
+    }
+
+    function renderComments(comments) {
+      commentsList.innerHTML = '';
+      if (!Array.isArray(comments) || comments.length === 0) {
+        commentsList.innerHTML = '<div class="text-xs text-gray-500">No comments yet.</div>';
+        return;
+      }
+      comments.forEach(c => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'bg-white border rounded px-3 py-2 flex justify-between items-start gap-2 shadow-sm';
+        const left = document.createElement('div');
+        left.className = 'flex flex-col flex-grow';
+        const who = document.createElement('div');
+        who.className = 'text-xs font-semibold';
+        who.textContent = c.user?.username ? '@' + c.user.username : c.user?.name || 'unknown';
+        const content = document.createElement('div');
+        content.className = 'text-sm';
+        content.textContent = c.content;
+        left.append(who, content);
+        const right = document.createElement('div');
+        right.className = 'flex gap-2 items-center text-xs';
+
+        const t = document.createElement('div');
+        t.className = 'text-gray-400 mr-2';
+        t.textContent = new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        right.append(t);
+
+        if (c.user?.id === currentUser) {
+          const editBtn = document.createElement('button');
+          editBtn.className = 'underline text-blue-600 hover:text-blue-800';
+          editBtn.textContent = 'edit';
+          editBtn.addEventListener('click', async () => {
+            const updated = prompt('Edit comment', c.content);
+            if (!updated) return;
+            try {
+              const res = await fetch(`http://localhost:8000/api/comment/${c.id}`, {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: 'Bearer ' + authToken
+                },
+                body: JSON.stringify({ content: updated })
+              });
+              const d = await res.json();
+              if (!res.ok) throw new Error(d.error || 'update failed');
+              await loadPostState();
+            } catch (e) {
+              alert(e.message);
+            }
+          });
+          const deleteBtn = document.createElement('button');
+          deleteBtn.className = 'underline text-red-600 hover:text-red-800';
+          deleteBtn.textContent = 'delete';
+          deleteBtn.addEventListener('click', async () => {
+            if (!confirm('Delete comment?')) return;
+            try {
+              const res = await fetch(`http://localhost:8000/api/comment/${c.id}`, {
+                method: 'DELETE',
+                headers: { Authorization: 'Bearer ' + authToken }
+              });
+              const d = await res.json();
+              if (!res.ok) throw new Error(d.error || 'delete failed');
+              await loadPostState();
+            } catch (e) {
+              alert(e.message);
+            }
+          });
+          right.append(editBtn, deleteBtn);
+        }
+
+        wrapper.append(left, right);
+        commentsList.appendChild(wrapper);
+      });
+    }
+
+    likeButton.addEventListener('click', async () => {
+      const postId = testPostIdInput.value.trim();
+      if (!postId) return alert('postId required');
+      if (!authToken) return alert('login first');
+      try {
+        const res = await fetch(`http://localhost:8000/api/${postId}/like`, {
+          method: 'POST',
+          headers: authHeaders()
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error || 'like failed');
+        await loadPostState();
+      } catch (e) {
+        alert(e.message);
+      }
+    });
+
+    saveButton.addEventListener('click', async () => {
+      const postId = testPostIdInput.value.trim();
+      if (!postId) return alert('postId required');
+      if (!authToken) return alert('login first');
+      try {
+        const res = await fetch(`http://localhost:8000/api/${postId}/save`, {
+          method: 'POST',
+          headers: authHeaders()
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error || 'save failed');
+        await loadPostState();
+      } catch (e) {
+        alert(e.message);
+      }
+    });
+
+    viewLikersBtn.addEventListener('click', async () => {
+      const postId = testPostIdInput.value.trim();
+      if (!postId) return alert('postId required');
+      try {
+        const res = await fetch(`http://localhost:8000/api/${postId}/likes/users`);
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error || 'fail');
+        const list = d.users.map(u => u.username ? '@' + u.username : u.name).join(', ');
+        alert('Liked by: ' + (list || 'none'));
+      } catch (e) {
+        alert('Could not load likers');
+      }
+    });
+
+    addCommentBtn.addEventListener('click', async () => {
+      const postId = testPostIdInput.value.trim();
+      const content = newCommentInput.value.trim();
+      if (!postId) return alert('postId required');
+      if (!authToken) return alert('login first');
+      if (!content) return alert('comment required');
+      try {
+        const res = await fetch(`http://localhost:8000/api/${postId}/comment`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + authToken
+          },
+          body: JSON.stringify({ content })
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error || 'comment failed');
+        newCommentInput.value = '';
+        await loadPostState();
+      } catch (e) {
+        alert(e.message);
+      }
+    });
+
+    clearCommentBtn.addEventListener('click', () => {
+      newCommentInput.value = '';
+    });
+
+    loadPostStateBtn.addEventListener('click', () => {
+      loadPostState();
+    });
+
+    testPostIdInput.addEventListener('keyup', (e) => {
+      if (e.key === 'Enter') loadPostState();
+    });
+  </script>
+</body>
+</html>

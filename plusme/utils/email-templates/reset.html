@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Password Reset</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f9f9f9;
+        color: #333;
+        padding: 20px;
+      }
+      .container {
+        background: #fff;
+        padding: 24px;
+        border-radius: 8px;
+        max-width: 600px;
+        margin: auto;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      .code-box {
+        background: #eee;
+        padding: 12px;
+        border-radius: 5px;
+        font-size: 18px;
+        text-align: center;
+        letter-spacing: 2px;
+        font-weight: bold;
+        margin: 20px 0;
+      }
+      .footer {
+        margin-top: 30px;
+        font-size: 12px;
+        color: #888;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Reset your {{appName}} password</h2>
+      <p>Use the code below to reset your password. It will expire in {{expiresIn}} minutes.</p>
+
+      <div class="code-box">{{code}}</div>
+
+      <p>If you didn’t request a password reset, you can ignore this email.</p>
+
+      <p>Thanks,<br />The {{appName}} Team</p>
+
+      <div class="footer">
+        &copy; {{year}} {{appName}} · 
+        <a href="{{backendurl}}" style="color: #888;">Visit site</a> · 
+        Contact: <a href="mailto:{{supportEmail}}" style="color: #888;">{{supportEmail}}</a>
+      </div>
+    </div>
+  </body>
+</html>

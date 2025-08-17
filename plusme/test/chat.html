@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Real-time Chat</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <style>
+    @keyframes slideInFade {
+      0% {
+        opacity: 0;
+        transform: translateY(15px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .message {
+      max-width: 70%;
+      padding: 8px 14px;
+      border-radius: 12px;
+      margin-bottom: 6px;
+      word-wrap: break-word;
+      animation: slideInFade 0.3s ease forwards;
+      position: relative;
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+    }
+    .message.sent {
+      background-color: #3b82f6;
+      color: white;
+      margin-left: auto;
+      border-bottom-right-radius: 4px;
+    }
+    .message.received {
+      background-color: #e5e7eb;
+      color: #1f2937;
+      margin-right: auto;
+      border-bottom-left-radius: 4px;
+    }
+    #typingIndicator {
+      font-style: italic;
+      color: #6b7280;
+      min-height: 20px;
+      height: 20px;
+    }
+    .seen-status {
+      font-size: 10px;
+      margin-left: 8px;
+      opacity: 0.7;
+      position: absolute;
+      bottom: 2px;
+      right: 8px;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 flex flex-col min-h-screen items-center justify-center p-4">
+
+  <div class="w-full max-w-md bg-white rounded-xl shadow-md p-6 flex flex-col h-[80vh]">
+    <h1 class="text-3xl font-bold mb-6 text-center text-blue-600 select-none">Real-time Chat</h1>
+
+    <div id="loginSection" class="mb-6">
+      <form id="loginForm" class="flex flex-col space-y-3">
+        <input
+          type="text"
+          id="identifier"
+          placeholder="Email or Username"
+          required
+          class="border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          autocomplete="username"
+        />
+        <input
+          type="password"
+          id="password"
+          placeholder="Password"
+          required
+          class="border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          autocomplete="current-password"
+        />
+        <button
+          type="submit"
+          class="bg-blue-600 text-white rounded py-3 font-semibold hover:bg-blue-700 transition duration-200"
+        >
+          Log in
+        </button>
+      </form>
+      <p id="loginStatus" class="text-sm mt-3 text-center text-red-600 min-h-[1.25rem]"></p>
+    </div>
+
+    <div id="chatSection" class="hidden flex flex-col flex-grow">
+      <div class="flex mb-3 space-x-2">
+        <input
+          id="otherUserId"
+          type="text"
+          placeholder="User ID to chat with"
+          class="flex-grow border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+          autocomplete="off"
+        />
+        <button
+          id="loadConversationBtn"
+          class="bg-green-600 text-white rounded px-5 py-2 hover:bg-green-700 transition duration-200"
+        >
+          Load
+        </button>
+      </div>
+
+      <div
+        id="messages"
+        class="flex-grow overflow-auto border border-gray-300 rounded p-4 bg-gray-100 mb-1 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200"
+        style="scroll-behavior: smooth;"
+      ></div>
+      <div id="typingIndicator" class="mb-1 pl-2"></div>
+
+      <form id="sendMessageForm" class="flex space-x-2 mt-2">
+        <input
+          id="messageInput"
+          type="text"
+          placeholder="Type your message..."
+          class="flex-grow border border-gray-300 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          autocomplete="off"
+        />
+        <button
+          type="submit"
+          class="bg-blue-600 text-white rounded px-6 py-3 hover:bg-blue-700 transition duration-200"
+        >
+          Send
+        </button>
+      </form>
+    </div>
+  </div>
+
+<script>
+  let socket;
+  let authToken = '';
+  let currentUserId = null;
+  let currentOtherUserId = null;
+  let typingTimeout = null;
+
+  const loginForm = document.getElementById('loginForm');
+  const loginStatus = document.getElementById('loginStatus');
+  const loginSection = document.getElementById('loginSection');
+  const chatSection = document.getElementById('chatSection');
+  const otherUserIdInput = document.getElementById('otherUserId');
+  const loadConversationBtn = document.getElementById('loadConversationBtn');
+  const messagesDiv = document.getElementById('messages');
+  const typingIndicator = document.getElementById('typingIndicator');
+  const sendMessageForm = document.getElementById('sendMessageForm');
+  const messageInput = document.getElementById('messageInput');
+
+  function getConversationId(userA, userB) {
+    const sorted = [userA, userB].sort();
+    return `${sorted[0]}-${sorted[1]}`;
+  }
+
+  // Safely get message text from content (string or object)
+  function getMessageText(msg) {
+    if (!msg.content) return '(empty message)';
+    if (typeof msg.content === 'string') {
+      try {
+        const parsed = JSON.parse(msg.content);
+        if (parsed && parsed.body) return parsed.body;
+      } catch {
+        return msg.content; // raw string fallback
+      }
+    } else if (typeof msg.content === 'object' && msg.content.body) {
+      return msg.content.body;
+    }
+    return '(empty message)';
+  }
+
+  function addMessage(msg, type) {
+    const text = getMessageText(msg);
+    const el = document.createElement('div');
+    el.className = `message ${type} relative`;
+    el.textContent = text;
+
+    if(type === 'sent') {
+      const seenSpan = document.createElement('span');
+      seenSpan.className = 'seen-status';
+      seenSpan.textContent = msg.isSeen ? '✓ Seen' : '✓ Sent';
+      el.appendChild(seenSpan);
+    }
+
+    messagesDiv.appendChild(el);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  }
+
+  async function fetchConversation(otherUserId) {
+    if (!authToken || !otherUserId) return;
+
+    messagesDiv.innerHTML = '<p class="text-center text-gray-500 mt-4">Loading messages...</p>';
+
+    try {
+      const res = await fetch(`http://localhost:8000/api/chat/conversation/${otherUserId}`, {
+        headers: { Authorization: 'Bearer ' + authToken },
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        messagesDiv.innerHTML = `<p class="text-center text-red-500 mt-4">Error loading messages: ${data.error || 'Unknown error'}</p>`;
+        return;
+      }
+
+      messagesDiv.innerHTML = '';
+      data.messages.reverse().forEach(msg => {
+        const type = (msg.senderId === currentUserId) ? 'sent' : 'received';
+        addMessage(msg, type);
+      });
+
+      // Join socket room for this conversation
+      const chatId = getConversationId(currentUserId, otherUserId);
+      socket.emit('join:chat', { chatId });
+
+      // Mark unseen messages as seen
+      data.messages.forEach(msg => {
+        if (!msg.isSeen && msg.receiverId === currentUserId) {
+          socket.emit('message:seen', { messageId: msg.id });
+        }
+      });
+
+      typingIndicator.textContent = '';
+    } catch (e) {
+      messagesDiv.innerHTML = '<p class="text-center text-red-500 mt-4">Network error loading messages.</p>';
+    }
+  }
+
+  function setupSocket() {
+    socket = io('http://localhost:8000', {
+      auth: { token: authToken }
+    });
+
+    socket.on('connect', () => {
+      console.log('Socket connected');
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Socket disconnected');
+      typingIndicator.textContent = '';
+    });
+
+    socket.on('message:new', (msg) => {
+      if (
+        (msg.senderId === currentOtherUserId && msg.receiverId === currentUserId) ||
+        (msg.receiverId === currentOtherUserId && msg.senderId === currentUserId)
+      ) {
+        addMessage(msg, msg.senderId === currentUserId ? 'sent' : 'received');
+
+        if (msg.receiverId === currentUserId && !msg.isSeen) {
+          socket.emit('message:seen', { messageId: msg.id });
+        }
+      }
+    });
+
+    socket.on('message:seen', (data) => {
+      // Refresh conversation to update seen status
+      fetchConversation(currentOtherUserId);
+    });
+
+    socket.on('typing', ({ from, chatId, isTyping }) => {
+      if (from === currentOtherUserId && chatId === getConversationId(currentUserId, currentOtherUserId)) {
+        typingIndicator.textContent = isTyping ? 'User is typing...' : '';
+      }
+    });
+  }
+
+  loginForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    loginStatus.textContent = 'Logging in...';
+    const identifier = document.getElementById('identifier').value.trim();
+    const password = document.getElementById('password').value;
+
+    try {
+      const res = await fetch('http://localhost:8000/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier, password }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        loginStatus.textContent = data.error || 'Login failed';
+        return;
+      }
+
+      authToken = data.token;
+      const payloadBase64 = authToken.split('.')[1];
+      const payloadJson = atob(payloadBase64);
+      const payload = JSON.parse(payloadJson);
+      currentUserId = payload.id || payload.user?.id;
+
+      loginStatus.textContent = 'Login successful!';
+
+      loginSection.classList.add('hidden');
+      chatSection.classList.remove('hidden');
+
+      setupSocket();
+    } catch (e) {
+      loginStatus.textContent = 'Network error';
+    }
+  });
+
+  loadConversationBtn.addEventListener('click', () => {
+    const id = otherUserIdInput.value.trim();
+    if (!id) return alert('Enter User ID to chat with');
+    currentOtherUserId = id;
+    fetchConversation(id);
+  });
+
+  sendMessageForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const msg = messageInput.value.trim();
+    if (!msg || !currentOtherUserId) return;
+
+    socket.emit('message:send', { receiverId: currentOtherUserId, message: msg });
+    messageInput.value = '';
+    typingIndicator.textContent = '';
+  });
+
+  messageInput.addEventListener('input', () => {
+    if (!socket || !currentOtherUserId) return;
+    const chatId = getConversationId(currentUserId, currentOtherUserId);
+
+    socket.emit('typing', { chatId, isTyping: true });
+
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+      socket.emit('typing', { chatId, isTyping: false });
+    }, 1000);
+  });
+</script>
+
+</body>
+</html>
