@@ -4,7 +4,7 @@ const auth = require('../../middlewares/auth');
 const { Follow, User } = require('../../models');
 const redis = require('../../utils/redis');
 
-const REDIS_TTL = 3600; // 1 hour
+const REDIS_TTL = 3600;
 
 async function getUserCounts(userId) {
   const followersKey = `user:${userId}:followers_count`;

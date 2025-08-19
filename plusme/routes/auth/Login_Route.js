@@ -77,7 +77,6 @@ async function recordFailedLogin(userId, ip) {
   return fails;
 }
 
-// Stronger password validation: min 8 chars, upper, lower, digit, special char
 function validatePassword(password) {
   if (password.length < 8) return false;
   if (!/[a-z]/.test(password)) return false;

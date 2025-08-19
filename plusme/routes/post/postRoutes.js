@@ -3,17 +3,41 @@ const router = express.Router();
 const auth = require('../../middlewares/auth');
 const { Op } = require('sequelize');
 const { Post } = require('../../models');
+const sanitizeHtml = require('sanitize-html');
 
 const ALLOWED_VIS = ['public', 'private', 'friends', 'community'];
 
+// Allow ALL tags & attributes but strip scripts & dangerous protocols
+const sanitizeOptions = {
+  allowedTags: false, // false = allow all tags
+  allowedAttributes: false, // false = allow all attributes
+  disallowedTagsMode: 'discard',
+  allowedSchemes: ['http', 'https', 'mailto'], // block javascript:, data:, vbscript:
+  allowProtocolRelative: false,
+  enforceHtmlBoundary: true, // avoid escaping outside HTML
+  transformTags: {
+    'script': function () {
+      return { tagName: 'noscript' }; // replace <script> with harmless tag
+    }
+  },
+  // Remove event handlers like onclick, onerror, etc.
+  exclusiveFilter: (frame) => {
+    if (!frame.attribs) return false;
+    for (const attr in frame.attribs) {
+      if (attr.toLowerCase().startsWith('on')) return true; // strip elements with inline JS
+    }
+    return false;
+  }
+};
 
 router.post('/newpost', auth, async (req, res) => {
   const authorId = req.user.id;
-  let { title, contentJson, imageUrl, visibility, communityId } = req.body;
+  let { title, description, contentJson, imageUrl, visibility, communityId } = req.body;
 
   if (!contentJson) return res.status(400).json({ error: "Content is required" });
   if (!title) return res.status(400).json({ error: "Title is required" });
   if (typeof title !== 'string' || !title.trim()) return res.status(400).json({ error: "Title must be a non-empty string" });
+
   title = title.trim();
   if (title.length > 100) return res.status(400).json({ error: "Max title length is 100 characters" });
 
@@ -26,10 +50,14 @@ router.post('/newpost', auth, async (req, res) => {
   }
 
   try {
+    // sanitize before saving (all HTML allowed except scripts/injections)
+    const safeContent = sanitizeHtml(contentJson, sanitizeOptions);
+
     const newPost = await Post.create({
       authorId,
       title,
-      contentJson,
+      description: description || null,
+      contentJson: safeContent, // only sanitized content stored
       imageUrl: imageUrl || null,
       visibility,
       communityId: visibility === 'community' ? communityId : null,
@@ -146,6 +174,17 @@ router.get('/myposts', auth, async (req, res) => {
   } catch (err) {
     console.error('fetch my posts error', err);
     return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.get('/post', async (req, res) => {
+  try {
+    const posts = await Post.findAll({
+      order: [['createdAt', 'DESC']]
+    });
+    res.json(posts);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

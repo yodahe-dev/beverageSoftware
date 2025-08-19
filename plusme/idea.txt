@@ -1,6 +1,6 @@
 nameidea = {
     1: "bird"
-    2: "Plusme"
+    2: "+me"
     3: "ClassLink"
     4: "ClubLink"
     5: "CircleUp"
