@@ -20,6 +20,8 @@ router.post('/:postId/like', auth, async (req, res) => {
       return res.status(404).json({ error: "Post not found" });
     }
 
+    let result; // store response to send after transaction
+
     // transactionally toggle
     await sequelize.transaction(async (tx) => {
       const existingLike = await Like.findOne({
@@ -35,19 +37,17 @@ router.post('/:postId/like', auth, async (req, res) => {
           const key = likeKey(postId);
           const current = await redis.get(key);
           if (current !== null) {
-            // ensure not below zero
             if (parseInt(current, 10) > 0) {
               await redis.decr(key);
             }
           } else {
-            // repopulate from DB after deletion
             const count = await Like.count({ where: { postId } });
-            await redis.set(key, count);
+            await redis.set(key, count, 'EX', 3600); // 1h cache
           }
         } catch (e) {
           console.warn('Redis update on unlike failed', e);
         }
-        res.json({ message: "Post unliked", liked: false });
+        result = { message: "Post unliked", liked: false };
       } else {
         await Like.create({ userId, postId }, { transaction: tx });
         // increment redis
@@ -57,16 +57,17 @@ router.post('/:postId/like', auth, async (req, res) => {
           if (current !== null) {
             await redis.incr(key);
           } else {
-            // initialize from DB
             const count = await Like.count({ where: { postId } });
-            await redis.set(key, count);
+            await redis.set(key, count, 'EX', 3600); // 1h cache
           }
         } catch (e) {
           console.warn('Redis update on like failed', e);
         }
-        res.json({ message: "Post liked", liked: true });
+        result = { message: "Post liked", liked: true };
       }
     });
+
+    return res.json(result);
   } catch (err) {
     console.error("Like/unlike error:", err);
     return res.status(500).json({ error: "Server error" });
@@ -86,8 +87,7 @@ router.get('/:postId/likes/count', async (req, res) => {
       likes = parseInt(cached, 10);
     } else {
       likes = await Like.count({ where: { postId } });
-      // set with no expiration (could add TTL if desired)
-      await redis.set(key, likes);
+      await redis.set(key, likes, 'EX', 3600); // 1h cache
     }
 
     return res.json({ postId, likes });
@@ -97,9 +97,10 @@ router.get('/:postId/likes/count', async (req, res) => {
   }
 });
 
-// Get list of users who liked a post
+// Get list of users who liked a post (with pagination)
 router.get('/:postId/likes/users', async (req, res) => {
   const { postId } = req.params;
+  const { page = 1, limit = 20 } = req.query;
 
   try {
     const likes = await Like.findAll({
@@ -111,11 +112,15 @@ router.get('/:postId/likes/users', async (req, res) => {
           attributes: ['id', 'name', 'username', 'profileImageUrl']
         }
       ],
-      order: [['createdAt', 'DESC']]
+      order: [['createdAt', 'DESC']],
+      offset: (parseInt(page, 10) - 1) * parseInt(limit, 10),
+      limit: parseInt(limit, 10),
     });
 
     return res.json({
       postId,
+      page: parseInt(page, 10),
+      limit: parseInt(limit, 10),
       users: likes.map(like => like.user)
     });
   } catch (err) {

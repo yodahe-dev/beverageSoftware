@@ -134,6 +134,7 @@ export default function CreatePostPage() {
     immediatelyRender: false,
     onUpdate: () => {
       // Calculate engagement score based on content
+      if (!editor) return;
       const content = editor.getText();
       const wordCount = content.split(/\s+/).length;
       const headingCount = (content.match(/#+/g) || []).length;
