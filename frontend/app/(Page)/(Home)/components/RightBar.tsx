@@ -66,7 +66,7 @@ const RightSidebar = () => {
       initial={{ x: 100, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
-      className="fixed right-0 top-0 h-full w-[4500px] xl:w-[490px] z-30 hidden lg:block"
+      className="fixed right-0 top-0 h-full w-[300px] xl:w-[400px] z-30 hidden lg:block"
     >
       <div className="bg-gradient-to-b from-gray-900/95 to-gray-800/95 backdrop-blur-2xl h-full border-l border-violet-500/20 flex flex-col py-6 px-5">
         {/* Search Bar */}

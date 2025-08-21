@@ -1,41 +1,45 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../../middlewares/auth');
-const { Comment, Post, User, sequelize } = require('../../models');
+const { Comment, Post, User, CommentLike, sequelize } = require('../../models');
 const redis = require('../../utils/redis');
 
-// Redis key helper for comment count
-function commentKey(postId) {
-  return `post:${postId}:comments`;
-}
+// Redis helpers
+const commentKey = (postId) => `post:${postId}:comments`;
+const commentLikeKey = (commentId) => `comment:${commentId}:likes`;
 
-// Create comment with Redis count increment
+// =====================
+// CREATE COMMENT / REPLY
+// =====================
 router.post('/:postId/comment', auth, async (req, res) => {
   const userId = req.user.id;
   const { postId } = req.params;
-  const { content } = req.body;
+  const { content, parentId } = req.body;
 
-  if (!content || content.trim() === '') {
-    return res.status(400).json({ error: 'Content is required' });
-  }
+  if (!content || !content.trim()) return res.status(400).json({ error: 'Content is required' });
 
   try {
     const post = await Post.findByPk(postId);
     if (!post) return res.status(404).json({ error: 'Post not found' });
 
+    // If parentId is provided, check that parent exists
+    if (parentId) {
+      const parentComment = await Comment.findByPk(parentId);
+      if (!parentComment) return res.status(404).json({ error: 'Parent comment not found' });
+    }
+
     const comment = await sequelize.transaction(async (tx) => {
       const newComment = await Comment.create(
-        { userId, postId, content: content.trim() },
+        { userId, postId, content: content.trim(), parentId: parentId || null },
         { transaction: tx }
       );
 
-      // Update Redis count
+      // Update Redis comment count
       try {
         const key = commentKey(postId);
         const current = await redis.get(key);
-        if (current !== null) {
-          await redis.incr(key);
-        } else {
+        if (current !== null) await redis.incr(key);
+        else {
           const count = await Comment.count({ where: { postId } });
           await redis.set(key, count);
         }
@@ -53,15 +57,15 @@ router.post('/:postId/comment', auth, async (req, res) => {
   }
 });
 
-// Update comment content
+// =====================
+// UPDATE COMMENT
+// =====================
 router.put('/comment/:id', auth, async (req, res) => {
   const userId = req.user.id;
   const { id } = req.params;
   const { content } = req.body;
 
-  if (!content || content.trim() === '') {
-    return res.status(400).json({ error: 'Content is required' });
-  }
+  if (!content || !content.trim()) return res.status(400).json({ error: 'Content is required' });
 
   try {
     const comment = await Comment.findByPk(id);
@@ -78,7 +82,9 @@ router.put('/comment/:id', auth, async (req, res) => {
   }
 });
 
-// Delete comment with Redis decrement
+// =====================
+// DELETE COMMENT
+// =====================
 router.delete('/comment/:id', auth, async (req, res) => {
   const userId = req.user.id;
   const { id } = req.params;
@@ -92,16 +98,12 @@ router.delete('/comment/:id', auth, async (req, res) => {
     await sequelize.transaction(async (tx) => {
       await comment.destroy({ transaction: tx });
 
-      // Update Redis count
+      // Update Redis comment count
       try {
         const key = commentKey(postId);
         const current = await redis.get(key);
-        if (current !== null) {
-          const currentInt = parseInt(current, 10);
-          if (currentInt > 0) {
-            await redis.decr(key);
-          }
-        } else {
+        if (current !== null && parseInt(current, 10) > 0) await redis.decr(key);
+        else {
           const count = await Comment.count({ where: { postId } });
           await redis.set(key, count);
         }
@@ -117,21 +119,28 @@ router.delete('/comment/:id', auth, async (req, res) => {
   }
 });
 
-// Get all comments for a post
+// =====================
+// GET COMMENTS WITH REPLIES
+// =====================
 router.get('/:postId/comments', async (req, res) => {
   const { postId } = req.params;
+  const { page = 1, limit = 20 } = req.query;
 
   try {
     const comments = await Comment.findAll({
-      where: { postId },
+      where: { postId, parentId: null },
       include: [
+        { model: User, as: 'user', attributes: ['id', 'name', 'username', 'profileImageUrl'] },
         {
-          model: User,
-          as: 'user',
-          attributes: ['id', 'name', 'username', 'profileImageUrl']
+          model: Comment,
+          as: 'replies',
+          include: [{ model: User, as: 'user', attributes: ['id', 'name', 'username', 'profileImageUrl'] }],
+          order: [['createdAt', 'ASC']]
         }
       ],
-      order: [['createdAt', 'ASC']]
+      order: [['createdAt', 'ASC']],
+      limit,
+      offset: (page - 1) * limit
     });
 
     return res.json({ data: comments });
@@ -141,38 +150,93 @@ router.get('/:postId/comments', async (req, res) => {
   }
 });
 
-// Get all comments by current user
-router.get('/my/comments', auth, async (req, res) => {
+// =====================
+// COMMENT LIKE / UNLIKE
+// =====================
+router.post('/comment/:id/like', auth, async (req, res) => {
   const userId = req.user.id;
+  const { id } = req.params;
 
   try {
-    const comments = await Comment.findAll({
-      where: { userId },
-      include: [
-        {
-          model: Post,
-          as: 'post',
-          attributes: ['id', 'title']
-        }
-      ],
-      order: [['createdAt', 'DESC']]
+    const comment = await Comment.findByPk(id);
+    if (!comment) return res.status(404).json({ error: 'Comment not found' });
+
+    const key = commentLikeKey(id);
+
+    const [like, created] = await CommentLike.findOrCreate({
+      where: { userId, commentId: id }
     });
 
-    return res.json({ data: comments });
+    if (!created) {
+      // already liked → unlike
+      await like.destroy();
+      if (await redis.exists(key)) await redis.decr(key);
+      return res.json({ message: 'Comment unliked' });
+    } else {
+      // new like
+      if (await redis.exists(key)) await redis.incr(key);
+      else {
+        const count = await CommentLike.count({ where: { commentId: id } });
+        await redis.set(key, count);
+      }
+      return res.json({ message: 'Comment liked' });
+    }
   } catch (err) {
-    console.error('Get my comments error:', err);
+    console.error('Comment like/unlike error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Get comment count (cached)
-router.get('/:postId/comments/count', async (req, res) => {
-  const { postId } = req.params;
+// =====================
+// GET COMMENT LIKE STATUS (for current user)
+// =====================
+router.get('/comment/:id/like-status', auth, async (req, res) => {
+  const userId = req.user.id;
+  const { id } = req.params;
 
   try {
-    const key = commentKey(postId);
-    let count;
+    const like = await CommentLike.findOne({
+      where: { userId, commentId: id }
+    });
 
+    return res.json({ isLiked: !!like });
+  } catch (err) {
+    console.error('Get comment like status error:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// =====================
+// GET COMMENT LIKE COUNT
+// =====================
+router.get('/comment/:id/likes', async (req, res) => {
+  const { id } = req.params;
+  const key = commentLikeKey(id);
+
+  try {
+    let count;
+    const cached = await redis.get(key);
+    if (cached !== null) count = parseInt(cached, 10);
+    else {
+      count = await CommentLike.count({ where: { commentId: id } });
+      await redis.set(key, count);
+    }
+    return res.json({ commentId: id, likes: count });
+  } catch (err) {
+    console.error('Get comment likes error:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// =====================
+// GET COMMENT COUNT (for a post)
+// =====================
+router.get('/:postId/comment-count', async (req, res) => {
+  const { postId } = req.params;
+  const key = commentKey(postId);
+
+  try {
+    let count;
     const cached = await redis.get(key);
     if (cached !== null) {
       count = parseInt(cached, 10);
@@ -180,7 +244,6 @@ router.get('/:postId/comments/count', async (req, res) => {
       count = await Comment.count({ where: { postId } });
       await redis.set(key, count);
     }
-
     return res.json({ postId, comments: count });
   } catch (err) {
     console.error('Get comment count error:', err);

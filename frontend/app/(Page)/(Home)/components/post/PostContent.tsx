@@ -50,6 +50,13 @@ export default function PostContent({
         </div>
       )}
 
+      {/* Rich text content */}
+      {contentJson && (
+        <div className="px-6 mb-4">
+          <RichTextRenderer contentJson={contentJson} />
+        </div>
+      )}
+
       {/* Post Image */}
       {imageUrl && (
         <motion.div 

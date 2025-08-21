@@ -49,17 +49,7 @@ export default function PostActions({
           <span>{comments}</span>
         </motion.button>
 
-        <motion.button 
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="flex items-center space-x-2 text-sm text-violet-400 hover:text-violet-300"
-        >
-          <FaShare />
-          <span>{shares}</span>
-        </motion.button>
-      </div>
-
-      <motion.button
+        <motion.button
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={onSave}
@@ -69,6 +59,15 @@ export default function PostActions({
       >
         <FaBookmark className={saved ? "fill-amber-400" : ""} />
       </motion.button>
+      </div>
+
+      <motion.button 
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="flex items-center space-x-2 text-sm text-violet-400 hover:text-violet-300"
+        >
+          <FaShare />
+        </motion.button>
     </div>
   )
 }
