@@ -29,7 +29,7 @@ function isValidUsername(username) {
   return /^[a-zA-Z0-9_]{3,20}$/.test(username);
 }
 
-const PROFILE_CACHE_TTL = 600; // seconds
+const PROFILE_CACHE_TTL = 600;
 
 router.get('/profile', auth, async (req, res) => {
   try {

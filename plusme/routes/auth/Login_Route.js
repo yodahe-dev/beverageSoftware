@@ -136,7 +136,7 @@ router.post('/login', requireBody, async (req, res) => {
     await safeRedisCall(redis.del.bind(redis), `failedloginip:${ip}`);
 
 
-    const payload = { id: user.id, email: user.email };
+    const payload = { id: user.id, username: user.username, email: user.email };
     const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRATION });
 
     const refreshToken = uuidv4();
@@ -161,7 +161,7 @@ router.post('/login', requireBody, async (req, res) => {
 
     console.log(`User ${user.id} logged in from IP ${ip}, agent ${userAgent}`);
 
-    res.json({ message: 'Login successful', userId: user.id, token: accessToken});
+    res.json({ message: 'Login successful', userId: user.id, username: user.username, email: user.email, token: accessToken});
 
   } catch (err) {
     console.error('Login error:', err);
@@ -194,7 +194,7 @@ router.post('/refresh-token', requireBody, async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     // Issue new access token
-    const payload = { id: user.id, email: user.email };
+    const payload = { id: user.id, name: user.username, email: user.email };
     const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRATION });
 
     // Optional: Rotate refresh token for more security
