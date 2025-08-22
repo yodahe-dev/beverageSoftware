@@ -18,6 +18,7 @@ const postRoutes = require('./routes/post/postRoutes');
 const save = require('./routes/post/save');
 const like = require('./routes/post/like');
 const comment = require('./routes/post/comments');
+const PostView = require('./routes/post/PostView')
 
 const setupSocket = require('./utils/socket');
 
@@ -63,6 +64,8 @@ app.use('/api', postRoutes);
 app.use('/api', like);
 app.use('/api', save);
 app.use('/api', comment);
+app.use("/api", PostView);
+
 
 // ===== SOCKET.IO SETUP =====
 const io = new Server(server, {

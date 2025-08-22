@@ -177,16 +177,4 @@ router.get('/myposts', auth, async (req, res) => {
   }
 });
 
-router.get('/post', async (req, res) => {
-  try {
-    const posts = await Post.findAll({
-      order: [['createdAt', 'DESC']]
-    });
-    res.json(posts);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-
 module.exports = router;

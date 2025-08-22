@@ -1,17 +1,28 @@
 const express = require('express');
 const router = express.Router();
-const { Op, fn, col, literal, Sequelize } = require('sequelize');
-const { Post, User, Like, Follow, SavedPost, Comment, Tag, Chat } = require('../models');
+const { Op } = require('sequelize');
+const { Post, User } = require('../../models');
 
+router.get('/post', async (req, res) => {
+  try {
+    const posts = await Post.findAll({
+      order: [['createdAt', 'DESC']],
+      include: [
+        {
+          model: User,
+          as: 'author',
+          attributes: ['id', 'name', 'username', 'profileImageUrl', 'bio'] // pick what you want
+        }
+      ]
+    });
 
+    res.json(posts);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-
-
-
-
-
-
-
+module.exports = router;
 
 
 // const MIN_SIMILARITY = 0.25;
