@@ -2,38 +2,16 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../../middlewares/auth');
 const { Follow, User } = require('../../models');
-const redis = require('../../utils/redis');
+const { Op } = require('sequelize');
 
-const REDIS_TTL = 3600;
-
+// Helper function to get real-time counts
 async function getUserCounts(userId) {
-  const followersKey = `user:${userId}:followers_count`;
-  const followingKey = `user:${userId}:following_count`;
-
-  let [followers, following] = await Promise.all([
-    redis.get(followersKey),
-    redis.get(followingKey),
-  ]);
-
-  if (followers === null) {
-    followers = await Follow.count({ where: { Following: userId } });
-    await redis.set(followersKey, followers, 'EX', REDIS_TTL);
-  } else {
-    followers = parseInt(followers);
-    if (isNaN(followers)) followers = 0;
-  }
-
-  if (following === null) {
-    following = await Follow.count({ where: { Follower: userId } });
-    await redis.set(followingKey, following, 'EX', REDIS_TTL);
-  } else {
-    following = parseInt(following);
-    if (isNaN(following)) following = 0;
-  }
-
+  const followers = await Follow.count({ where: { Following: userId } });
+  const following = await Follow.count({ where: { Follower: userId } });
   return { followers, following };
 }
 
+// Follow a user
 router.post('/follow', auth, async (req, res) => {
   const Me = req.user.id;
   const { FollowingId } = req.body;
@@ -47,9 +25,6 @@ router.post('/follow', auth, async (req, res) => {
     if (isFollow) return res.status(409).json({ message: "Already Followed 🙂" });
 
     await Follow.create({ Follower: Me, Following: FollowingId });
-
-    await redis.incr(`user:${Me}:following_count`);
-    await redis.incr(`user:${FollowingId}:followers_count`);
 
     const { followers, following } = await getUserCounts(Me);
     const targetCounts = await getUserCounts(FollowingId);
@@ -65,6 +40,7 @@ router.post('/follow', auth, async (req, res) => {
   }
 });
 
+// Unfollow a user
 router.delete('/unfollow', auth, async (req, res) => {
   const Me = req.user.id;
   const { FollowingId } = req.body;
@@ -75,9 +51,6 @@ router.delete('/unfollow', auth, async (req, res) => {
   try {
     const removed = await Follow.destroy({ where: { Follower: Me, Following: FollowingId } });
     if (!removed) return res.status(404).json({ message: "You didn’t follow this user 😉" });
-
-    await redis.decr(`user:${Me}:following_count`);
-    await redis.decr(`user:${FollowingId}:followers_count`);
 
     const { followers, following } = await getUserCounts(Me);
     const targetCounts = await getUserCounts(FollowingId);
@@ -93,6 +66,7 @@ router.delete('/unfollow', auth, async (req, res) => {
   }
 });
 
+// Get followers of a user
 router.get('/user/:id/followers', async (req, res) => {
   const userId = req.params.id;
   const limit = parseInt(req.query.limit) || 20;
@@ -118,6 +92,7 @@ router.get('/user/:id/followers', async (req, res) => {
   }
 });
 
+// Get following of a user
 router.get('/user/:id/following', async (req, res) => {
   const userId = req.params.id;
   const limit = parseInt(req.query.limit) || 20;
@@ -143,28 +118,77 @@ router.get('/user/:id/following', async (req, res) => {
   }
 });
 
+// Get user counts (followers & following) in real-time
 router.get('/count/:userId', auth, async (req, res) => {
   const userId = req.params.userId;
   if (!userId) return res.status(400).json({ message: 'User ID is required' });
 
   try {
-    let [followersCount, followingCount] = await Promise.all([
-      redis.get(`user:${userId}:followers_count`),
-      redis.get(`user:${userId}:following_count`),
-    ]);
-
-    let followers = followersCount !== null ? parseInt(followersCount) : await Follow.count({ where: { Following: userId } });
-    let following = followingCount !== null ? parseInt(followingCount) : await Follow.count({ where: { Follower: userId } });
-
-    if (isNaN(followers)) followers = 0;
-    if (isNaN(following)) following = 0;
-
-    if (followersCount === null) await redis.set(`user:${userId}:followers_count`, followers, 'EX', REDIS_TTL);
-    if (followingCount === null) await redis.set(`user:${userId}:following_count`, following, 'EX', REDIS_TTL);
-
+    const { followers, following } = await getUserCounts(userId);
     res.json({ followers, following });
   } catch (err) {
     console.error('Count Error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get all users
+router.get('/Allusers', auth, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50; // default 50
+    const offset = parseInt(req.query.offset) || 0;
+
+    const users = await User.findAll({
+      attributes: [
+        'id', 'name', 'username', 'email', 'bio', 'profileImageUrl',
+        'isBadgeVerified', 'openChat', 'visibility', 'status', 'createdAt'
+      ],
+      limit,
+      offset,
+      order: [['createdAt', 'DESC']],
+    });
+
+    res.json({ users });
+  } catch (err) {
+    console.error('Get All Users Error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get users not followed by the current user
+router.get('/NotFollowingUsers', auth, async (req, res) => {
+  const Me = req.user.id;
+  const limit = parseInt(req.query.limit) || 20;
+  const offset = parseInt(req.query.offset) || 0;
+
+  try {
+    // Find all users I already follow
+    const following = await Follow.findAll({
+      where: { Follower: Me },
+      attributes: ['Following']
+    });
+
+    const followingIds = following.map(f => f.Following);
+
+    // Get users excluding myself & the ones I follow
+    const users = await User.findAll({
+      where: {
+        id: {
+          [Op.notIn]: [Me, ...followingIds]
+        }
+      },
+      attributes: [
+        'id', 'name', 'username', 'bio', 'profileImageUrl',
+        'isBadgeVerified', 'openChat', 'visibility', 'status', 'createdAt'
+      ],
+      limit,
+      offset,
+      order: [['createdAt', 'DESC']]
+    });
+
+    res.json({ users });
+  } catch (err) {
+    console.error('Get Not-Following Users Error:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
