@@ -25,12 +25,15 @@ const setupSocket = require('./utils/socket');
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 8000;
+const path = require('path');
+
 
 app.set('trust proxy', true);
 
 // ===== CORS SETUP (supports multiple origins) =====
 const allowedOrigins = process.env.CLIENT_URL.split(',').map(url => url.trim());
 
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {

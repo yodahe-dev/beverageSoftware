@@ -2,10 +2,13 @@ const express = require('express');
 const router = express.Router();
 const { Op, fn, col } = require('sequelize');
 const auth = require('../../middlewares/auth');
+const uploadProfile = require('../../middlewares/ProfileUpload');
 const { User, sequelize } = require('../../models');
 const sanitizeHtml = require('sanitize-html');
 const { QuillDeltaToHtmlConverter } = require('quill-delta-to-html');
 const redis = require('../../utils/redis');
+const path = require("path");
+const fs = require("fs");
 
 function sanitizeBioHtml(html) {
   return sanitizeHtml(html, {
@@ -54,6 +57,32 @@ router.get('/profile', auth, async (req, res) => {
   }
 });
 
+// Upload or replace profile image
+router.post('/profile/upload', auth, uploadProfile, async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+    const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const imagePath = `/uploads/profiles/${req.user.id}`;
+
+    // if user never had a profile image, set path
+    if (!user.profileImageUrl) {
+      user.profileImageUrl = imagePath;
+    }
+
+    await user.save();
+    await redis.del(`profile:${req.user.id}`);
+
+    res.json({ message: "Profile image updated", url: imagePath });
+  } catch (err) {
+    console.error("Upload error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+
 router.put('/update', auth, async (req, res) => {
   const { name, username, bio, profileImageUrl, openChat, status, visibility } = req.body;
   const errors = [];
@@ -75,10 +104,6 @@ router.put('/update', auth, async (req, res) => {
       if (t.length < 3) errors.push('Name too short');
       if (t.length > 50) errors.push('Name too long');
     }
-  }
-
-  if (bio !== undefined) {
-    if (typeof bio !== 'object' || !Array.isArray(bio.ops)) errors.push('Invalid bio format');
   }
 
   if (profileImageUrl !== undefined) {
@@ -121,16 +146,6 @@ router.put('/update', auth, async (req, res) => {
       user.name = name.trim();
     }
 
-    if (bio !== undefined) {
-      let html;
-      try {
-        const converter = new QuillDeltaToHtmlConverter(bio.ops, {});
-        html = converter.convert();
-      } catch {
-        return res.status(400).json({ message: 'Failed to convert bio delta' });
-      }
-      user.bio = sanitizeBioHtml(html);
-    }
 
     if (profileImageUrl !== undefined) {
       user.profileImageUrl = profileImageUrl.trim();
@@ -149,8 +164,7 @@ router.put('/update', auth, async (req, res) => {
     }
 
     await user.save();
-
-    await redis.del(`profile:${req.user.id}`); // clear cache after update
+    await redis.del(`profile:${req.user.id}`);
 
     res.json({ message: 'Profile updated' });
   } catch (saveErr) {
