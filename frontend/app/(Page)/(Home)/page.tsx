@@ -5,7 +5,7 @@ import MessageSidebar from '@/app/components/MessageSidebar'
 
 export default function page() {
   return (
-    <div className="justify-center flex items-center flex-col w-full h-screen">
+    <div className="">
       <MessageSidebar />
     </div>
   );
