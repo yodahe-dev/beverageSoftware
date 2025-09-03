@@ -1,5 +1,12 @@
 {
     "files.exclude": {
-        "plusme/test": true
+        "plusme/test": true,
+        "frontend/app/(Page)/Home": true,
+        "frontend/.gitignore": true,
+        "frontend/components.json": true,
+        "frontend/next.config.ts": true,
+        "frontend/eslint.config.mjs": true,
+        "frontend/next-env.d.ts": true,
+        "frontend/tsconfig.json": true
     }
 }

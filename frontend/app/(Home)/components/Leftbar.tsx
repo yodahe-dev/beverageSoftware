@@ -8,16 +8,17 @@ import {
 } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import useAuth from '@/hooks/useAuth';
 
 const LeftSidebar = () => {
   const [activeTab, setActiveTab] = useState('home');
   const [isExpanded, setIsExpanded] = useState(false);
   const [showTooltip, setShowTooltip] = useState<string | null>(null);
   const router = useRouter();
-  const { user: userInfo, loading } = useAuth();
 
-  if (loading) return <div>Loading...</div>;
+  const userInfo = {
+    username: '',
+    email: ''
+  };
 
   const navItems = [
     { id: 'home', label: 'Home', icon: <FaHome />, route: '/' },
