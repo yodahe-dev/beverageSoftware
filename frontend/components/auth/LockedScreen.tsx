@@ -1,14 +1,15 @@
 "use client";
+
 import { motion } from "framer-motion";
 import { FaLock } from "react-icons/fa";
 
-interface LockedScreenProps {
+type LockedScreenProps = {
   lockTime: number;
   failedAttempts: number;
   formatTime: (seconds: number) => string;
-}
+};
 
-const LockedScreen = ({ lockTime, failedAttempts, formatTime }: LockedScreenProps) => {
+export default function LockedScreen({ lockTime, failedAttempts, formatTime }: LockedScreenProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -32,6 +33,4 @@ const LockedScreen = ({ lockTime, failedAttempts, formatTime }: LockedScreenProp
       </p>
     </motion.div>
   );
-};
-
-export default LockedScreen;
+}

@@ -142,3 +142,62 @@
     }
   }
 }
+
+
+:root {
+  /* ---------------- Brand Colors ---------------- */
+  --color-brand-start: #7c3aed;
+  --color-brand-mid: #9d4edd;
+  --color-brand-end: #d946ef;
+
+  /* ---------------- Black Background Gradients ---------------- */
+  --bg-dark-1: linear-gradient(135deg, #000000 0%, #0f0f0f 50%, #1a1a1a 100%);
+  --bg-dark-2: linear-gradient(120deg, #000000 0%, #13001f 50%, #250030 100%);
+  --bg-dark-3: linear-gradient(145deg, #000000 0%, #2c003f 50%, #4b0082 100%);
+
+  /* ---------------- Brand Gradients ---------------- */
+  --bg-brand-1: linear-gradient(to bottom right, var(--color-brand-start), var(--color-brand-mid));
+  --bg-brand-2: linear-gradient(to bottom right, var(--color-brand-mid), var(--color-brand-end));
+  --bg-brand-3: linear-gradient(to bottom right, var(--color-brand-start), var(--color-brand-end));
+
+  /* ---------------- Text Gradients ---------------- */
+  --text-brand-1: linear-gradient(to right, var(--color-brand-start), var(--color-brand-end));
+  --text-brand-2: linear-gradient(to right, var(--color-brand-start), var(--color-brand-mid));
+  --text-brand-3: linear-gradient(to right, var(--color-brand-mid), var(--color-brand-end));
+
+  /* ---------------- Shadows ---------------- */
+  --shadow-brand-1: 0 0 20px var(--color-brand-mid);
+  --shadow-brand-2: 0 0 15px var(--color-brand-end);
+  --shadow-brand-3: 0 0 25px var(--color-brand-start);
+
+  /* ---------------- Text Colors ---------------- */
+  --plusme-text-light: #f9f9f9;
+  --plusme-text-muted: #a3a3a3;
+  
+    /* Backgrounds */
+  --bg-gradient-dark-3: linear-gradient(to bottom right, #000000, #0d0d0d, #1a1a1a);
+  --bg-gradient-brand: linear-gradient(to right, #7c3aed, #9d4edd, #d946ef);
+  --bg-input: #121212;
+  --modal-overlay: rgba(0, 0, 0, 0.75);
+
+  /* Brand Colors */
+  --color-brand-start: #7c3aed;
+  --color-brand-mid: #9d4edd;
+  --color-brand-end: #d946ef;
+
+  /* Text */
+  --text-primary: #ffffff;
+  --text-secondary: #cccccc;
+  --text-muted: #999999;
+  --text-light: #ffffff;
+}
+
+
+
+
+
+
+
+
+
+

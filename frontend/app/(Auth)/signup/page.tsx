@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import AuthHeader from "@/components/auth/AuthHeader";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { toast, Toaster } from "sonner";
@@ -24,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import SignupForm from "@/components/auth/SignupForm";
 
 const Signup = () => {
   const router = useRouter();
@@ -480,334 +482,33 @@ const Signup = () => {
           className="w-full max-w-md backdrop-blur-sm bg-black/20 rounded-2xl border border-green-500/20 shadow-[0_0_50px_#22c55e/10] overflow-hidden"
         >
           {/* Logo header */}
-          <div className="p-8 pb-6 border-b border-green-500/10 relative">
-            <div className="flex flex-col items-center">
-              {/* +Me logo */}
-              <motion.div 
-                className="relative mb-6"
-                initial={{ rotate: -15, scale: 0.8 }}
-                animate={{ rotate: 0, scale: 1 }}
-                transition={{ 
-                  delay: 0.2, 
-                  type: "spring", 
-                  stiffness: 300,
-                  damping: 15
-                }}
-              >
-                <div className="w-32 h-32 rounded-[30%] bg-gradient-to-br from-green-500/10 to-emerald-600/10 border-2 border-green-500/30 flex items-center justify-center">
-                  <motion.div 
-                    className="relative"
-                    animate={{ 
-                      rotate: [0, 5, 0, -5, 0],
-                      scale: [1, 1.05, 1, 1.05, 1]
-                    }}
-                    transition={{ 
-                      duration: 4, 
-                      repeat: Infinity,
-                      ease: "easeInOut"
-                    }}
-                  >
-                    <div className="absolute w-12 h-1 bg-green-400 rounded-full"></div>
-                    <div className="absolute w-1 h-12 bg-green-400 rounded-full" style={{ left: '50%', transform: 'translateX(-50%)' }}></div>
-                  </motion.div>
-                </div>
-                <motion.div 
-                  className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-green-500 border-4 border-black"
-                  animate={{ 
-                    scale: [1, 1.2, 1],
-                    opacity: [0.8, 1, 0.8]
-                  }}
-                  transition={{ 
-                    duration: 3, 
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                  }}
-                ></motion.div>
-              </motion.div>
-              
-              <motion.h1 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="text-4xl font-bold text-center mb-2 tracking-tight"
-              >
-                Create Account
-              </motion.h1>
-              
-              <motion.p 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="text-green-400/80 text-center"
-              >
-                Join the +Me community today
-              </motion.p>
-            </div>
-          </div>
+          <AuthHeader/>
           
           {/* Form section */}
-          <div className="p-8 pt-6">
-            <form 
-              onSubmit={handleSubmit} 
-              className="flex flex-col gap-5"
-            >
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-              >
-                <label className="block text-sm font-medium mb-2">Full Name</label>
-                <div className="relative">
-                  <input
-                    placeholder="John Doe"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                    className="w-full bg-black/20 border border-green-500/30 text-green-300 placeholder:text-green-600/70 focus:border-green-400 focus:ring-1 focus:ring-green-500/30 shadow-[0_0_10px_#22c55e/5] rounded-xl py-3 px-4 pl-10 transition-all duration-300"
-                  />
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-green-400">
-                    <FaUser className="h-4 w-4" />
-                  </div>
-                </div>
-              </motion.div>
-              
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.65 }}
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <label className="block text-sm font-medium">Username</label>
-                  <button
-                    type="button"
-                    onClick={checkUsernameAvailability}
-                    disabled={isCheckingUsername || !username}
-                    className="text-xs text-green-400 hover:text-green-300 transition-colors flex items-center"
-                  >
-                    {isCheckingUsername ? (
-                      <span className="flex items-center">
-                        <span className="h-3 w-3 border-t-2 border-green-400 rounded-full animate-spin mr-1"></span>
-                        Checking...
-                      </span>
-                    ) : (
-                      "Check Availability"
-                    )}
-                  </button>
-                </div>
-                <div className="relative">
-                  <input
-                    placeholder="yourusername"
-                    type="text"
-                    value={username}
-                    onChange={(e) => {
-                      setUsername(e.target.value);
-                      setUsernameAvailable(null);
-                    }}
-                    required
-                    className="w-full bg-black/20 border border-green-500/30 text-green-300 placeholder:text-green-600/70 focus:border-green-400 focus:ring-1 focus:ring-green-500/30 shadow-[0_0_10px_#22c55e/5] rounded-xl py-3 px-4 pl-10 transition-all duration-300"
-                  />
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-green-400">
-                    <FaUser className="h-4 w-4" />
-                  </div>
-                  {username && usernameAvailable !== null && (
-                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                      {usernameAvailable ? (
-                        <FaCheck className="h-4 w-4 text-green-400" />
-                      ) : (
-                        <FaTimes className="h-4 w-4 text-red-400" />
-                      )}
-                    </div>
-                  )}
-                </div>
-                {usernameError && (
-                  <p className="mt-1 text-xs text-red-400">{usernameError}</p>
-                )}
-                {usernameAvailable !== null && !usernameError && (
-                  <p className={`mt-1 text-xs ${
-                    usernameAvailable ? "text-green-400" : "text-red-400"
-                  }`}>
-                    {usernameAvailable 
-                      ? "Username is available!" 
-                      : "Username is not available"}
-                  </p>
-                )}
-              </motion.div>
-              
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.7 }}
-              >
-                <label className="block text-sm font-medium mb-2">Email</label>
-                <div className="relative">
-                  <input
-                    placeholder="name@example.com"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className={`w-full bg-black/20 border ${
-                      emailError ? "border-red-500/50" : "border-green-500/30"
-                    } text-green-300 placeholder:text-green-600/70 focus:border-green-400 focus:ring-1 focus:ring-green-500/30 shadow-[0_0_10px_#22c55e/5] rounded-xl py-3 px-4 pl-10 transition-all duration-300`}
-                  />
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-green-400">
-                    <FaEnvelope className="h-4 w-4" />
-                  </div>
-                </div>
-                {emailError && (
-                  <p className="mt-1 text-xs text-red-400">{emailError}</p>
-                )}
-              </motion.div>
-              
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.75 }}
-              >
-                <label className="block text-sm font-medium mb-2">Password</label>
-                <div className="relative">
-                  <input
-                    placeholder="••••••••"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="w-full bg-black/20 border border-green-500/30 text-green-300 placeholder:text-green-600/70 focus:border-green-400 focus:ring-1 focus:ring-green-500/30 shadow-[0_0_10px_#22c55e/5] rounded-xl py-3 px-4 pl-10 transition-all duration-300"
-                  />
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-green-400">
-                    <FaLock className="h-4 w-4" />
-                  </div>
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-400 hover:text-green-300 transition-colors"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <FaEyeSlash className="h-4 w-4" />
-                    ) : (
-                      <FaEye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-                {renderPasswordStrength()}
-              </motion.div>
-              
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.8 }}
-              >
-                <label className="block text-sm font-medium mb-2">Confirm Password</label>
-                <div className="relative">
-                  <input
-                    placeholder="••••••••"
-                    type={showConfirmPassword ? "text" : "password"}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                    className="w-full bg-black/20 border border-green-500/30 text-green-300 placeholder:text-green-600/70 focus:border-green-400 focus:ring-1 focus:ring-green-500/30 shadow-[0_0_10px_#22c55e/5] rounded-xl py-3 px-4 pl-10 transition-all duration-300"
-                  />
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-green-400">
-                    <FaLock className="h-4 w-4" />
-                  </div>
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-400 hover:text-green-300 transition-colors"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  >
-                    {showConfirmPassword ? (
-                      <FaEyeSlash className="h-4 w-4" />
-                    ) : (
-                      <FaEye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-              </motion.div>
-              
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.9 }}
-              >
-                <button
-                  type="submit"
-                  disabled={isLoading || usernameAvailable === false}
-                  className={`w-full relative overflow-hidden py-3 px-4 rounded-xl font-medium transition-all duration-300 flex items-center justify-center ${
-                    isLoading || usernameAvailable === false
-                      ? "bg-green-600/30 cursor-not-allowed" 
-                      : "bg-gradient-to-r from-green-600/80 to-emerald-600/90 hover:from-green-500/90 hover:to-emerald-500/90"
-                  }`}
-                >
-                  {isLoading ? (
-                    <>
-                      <svg
-                        className="animate-spin h-5 w-5 mr-2 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                      Creating account...
-                    </>
-                  ) : (
-                    "Create Account"
-                  )}
-                  
-                  {/* Hover effect */}
-                  {!isLoading && usernameAvailable !== false && (
-                    <motion.span
-                      className="absolute inset-0 bg-white/5"
-                      initial={{ opacity: 0 }}
-                      whileHover={{ opacity: 1 }}
-                      transition={{ duration: 0.3 }}
-                    />
-                  )}
-                </button>
-              </motion.div>
-            </form>
-            
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1.0 }}
-              className="text-center text-sm text-green-500/80 mt-8"
-            >
-              Already have an account?{" "}
-              <a
-                href="/login"
-                className="text-green-400 hover:text-green-300 underline transition-colors font-medium"
-              >
-                Sign in
-              </a>
-            </motion.p>
-            
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1.1 }}
-              className="mt-6 text-xs text-green-500/60 text-center"
-            >
-              <p>By creating an account, you agree to our</p>
-              <p>
-                <a href="#" className="hover:text-green-400 underline">Terms of Service</a> and{" "}
-                <a href="#" className="hover:text-green-400 underline">Privacy Policy</a>
-              </p>
-            </motion.div>
-          </div>
+            <SignupForm
+      name={name}
+      setName={setName}
+      username={username}
+      setUsername={setUsername}
+      usernameAvailable={usernameAvailable}
+      usernameError={usernameError}
+      isCheckingUsername={isCheckingUsername}
+      checkUsernameAvailability={checkUsernameAvailability}
+      email={email}
+      setEmail={setEmail}
+      emailError={emailError}
+      password={password}
+      setPassword={setPassword}
+      showPassword={showPassword}
+      setShowPassword={setShowPassword}
+      confirmPassword={confirmPassword}
+      setConfirmPassword={setConfirmPassword}
+      showConfirmPassword={showConfirmPassword}
+      setShowConfirmPassword={setShowConfirmPassword}
+      renderPasswordStrength={renderPasswordStrength}
+      isLoading={isLoading}
+      handleSubmit={handleSubmit}
+    />
         </motion.div>
       </div>
 
