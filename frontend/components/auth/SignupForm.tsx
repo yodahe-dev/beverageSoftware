@@ -267,6 +267,20 @@ export default function SignupForm({
           </button>
         </motion.div>
       </form>
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.0 }}
+        className="text-center text-sm text-[var(--color-brand-mid)/80] mt-8"
+      >
+        New to +Me?{" "}
+        <a
+          href="/login"
+          className="text-[var(--color-brand-start)] hover:text-[var(--color-brand-end)] underline transition-colors font-medium"
+        >
+          already a member? Login here.
+        </a>
+      </motion.p>
     </div>
   );
 }

@@ -1,19 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import AuthHeader from "@/components/auth/AuthHeader";
+
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { toast, Toaster } from "sonner";
 import { motion } from "framer-motion";
 import { 
-  FaEnvelope, 
-  FaUser, 
-  FaLock, 
-  FaEye, 
-  FaEyeSlash, 
-  FaCheck,
-  FaTimes,
   FaRedo
 } from "react-icons/fa";
 import {
@@ -25,7 +18,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import AuthHeader from "@/components/auth/AuthHeader";
 import SignupForm from "@/components/auth/SignupForm";
+import VerificationModal from "@/components/auth/VerificationModal";
 
 const Signup = () => {
   const router = useRouter();
@@ -512,108 +507,16 @@ const Signup = () => {
         </motion.div>
       </div>
 
-      {/* Verification Modal */}
-      <Dialog open={showVerificationModal} onOpenChange={setShowVerificationModal}>
-        <DialogContent className="bg-gray-900 border border-green-500/30 rounded-xl max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-center mb-2">
-              Verify Your Email
-            </DialogTitle>
-            <DialogDescription className="text-center text-green-400/80">
-              We've sent a 6-digit code to your email address
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="py-4">
-            <div className="mb-6">
-              <label className="block text-sm font-medium mb-2 text-green-300">
-                Verification Code
-              </label>
-              <Input
-                type="text"
-                value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value)}
-                placeholder="Enter 6-digit code"
-                className="bg-gray-800 border border-green-500/30 text-white rounded-xl py-3 px-4 focus:border-green-400 focus:ring-1 focus:ring-green-500/30"
-              />
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <Button
-                onClick={handleVerificationSubmit}
-                disabled={isVerifying}
-                className="w-full bg-gradient-to-r from-green-600/80 to-emerald-600/90 hover:from-green-500/90 hover:to-emerald-500/90 py-3 px-4 rounded-xl transition-colors"
-              >
-                {isVerifying ? (
-                  <>
-                    <svg
-                      className="animate-spin h-5 w-5 mr-2 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    Verifying...
-                  </>
-                ) : (
-                  "Verify Account"
-                )}
-              </Button>
-
-              <Button
-                onClick={handleResendCode}
-                disabled={isResending}
-                variant="outline"
-                className="w-full border border-green-500/30 text-green-400 hover:bg-green-500/10 py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
-              >
-                {isResending ? (
-                  <>
-                    <svg
-                      className="animate-spin h-4 w-4 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <FaRedo className="h-4 w-4" />
-                    Resend Code
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <VerificationModal
+        showVerificationModal={showVerificationModal}
+        setShowVerificationModal={setShowVerificationModal}
+        verificationCode={verificationCode}
+        setVerificationCode={setVerificationCode}
+        handleVerificationSubmit={handleVerificationSubmit}
+        handleResendCode={handleResendCode}
+        isVerifying={isVerifying}
+        isResending={isResending}
+      />
     </div>
   );
 };

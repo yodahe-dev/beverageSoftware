@@ -15,15 +15,12 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
-import { 
-  FaArrowRight, FaImage, FaTimes, FaBold, FaItalic, FaUnderline, 
+import { FaImage, FaTimes, FaBold, FaItalic, FaUnderline, 
   FaStrikethrough, FaAlignLeft, FaAlignCenter, FaAlignRight, FaAlignJustify,
   FaListOl, FaListUl, FaSubscript, FaSuperscript, FaLink, FaParagraph,
-  FaCode, FaQuoteRight, FaTextHeight, FaIndent, FaOutdent, FaHighlighter,
-  FaPalette, FaEraser, FaMagic, FaUndo, FaRedo, FaPlus, FaMinus, FaFont,
-  FaLock, FaGlobe, FaUsers, FaUserFriends, FaTable, FaHeading, FaEye,
-  FaRobot, FaRocket, FaBrain, FaAtom, FaFingerprint, FaChartLine,
-  FaHashtag, FaRegSmile, FaPaperPlane, FaCog, FaLightbulb, 
+  FaCode, FaQuoteRight,  FaHighlighter, FaEye,
+  FaPalette, FaEraser, FaMagic, FaUndo, FaRedo, 
+  FaLock, FaGlobe, FaUsers, FaUserFriends, FaPaperPlane,
 } from 'react-icons/fa';
 import { HexColorPicker } from 'react-colorful';
 import { useEditor, EditorContent } from '@tiptap/react';
