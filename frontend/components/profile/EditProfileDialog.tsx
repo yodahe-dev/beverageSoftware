@@ -242,7 +242,7 @@ export default function EditProfileDialog({
           </div>
 
           {/* Gender & Birthday */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="gender" className="text-[#E6EAF0]">
                 Gender
@@ -264,7 +264,25 @@ export default function EditProfileDialog({
                 </SelectContent>
               </Select>
             </div>
-
+            <div className="space-y-2">
+              <Label htmlFor="visibility" className="text-[#E6EAF0]">
+                Visibility
+              </Label>
+              <Select
+                value={formData.visibility}
+                onValueChange={(value) =>
+                  handleSelectChange("visibility", value)
+                }
+              >
+                <SelectTrigger className="bg-[#1A1F24] backdrop-blur-sm border-[#222832] text-[#E6EAF0] focus:ring-2 focus:ring-[#12D6DF]">
+                  <SelectValue placeholder="Select visibility" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#1A1F24] border-[#222832] text-[#E6EAF0]">
+                  <SelectItem value="public">Public</SelectItem>
+                  <SelectItem value="private">Private</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="birthday" className="text-[#E6EAF0]">
                 Birthday
@@ -287,42 +305,9 @@ export default function EditProfileDialog({
                 </motion.p>
               )}
             </div>
+            
           </div>
-
-          {/* Status & Visibility */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="status" className="text-[#E6EAF0]">
-                Status
-              </Label>
-              <Input
-                id="status"
-                name="status"
-                value={formData.status}
-                onChange={handleInputChange}
-                className="bg-[#1A1F24] backdrop-blur-sm border-[#222832] text-[#E6EAF0] focus:ring-2 focus:ring-[#12D6DF]"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="visibility" className="text-[#E6EAF0]">
-                Visibility
-              </Label>
-              <Select
-                value={formData.visibility}
-                onValueChange={(value) =>
-                  handleSelectChange("visibility", value)
-                }
-              >
-                <SelectTrigger className="bg-[#1A1F24] backdrop-blur-sm border-[#222832] text-[#E6EAF0] focus:ring-2 focus:ring-[#12D6DF]">
-                  <SelectValue placeholder="Select visibility" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#1A1F24] border-[#222832] text-[#E6EAF0]">
-                  <SelectItem value="public">Public</SelectItem>
-                  <SelectItem value="private">Private</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+            
 
           {/* Open Chat Switch & Submit */}
           <div className="flex items-center justify-between pt-4 border-t border-[#222832]">
