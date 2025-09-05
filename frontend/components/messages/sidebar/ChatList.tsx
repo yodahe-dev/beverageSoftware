@@ -15,10 +15,17 @@ interface ChatUser {
 interface ChatListProps {
   chats: ChatUser[];
   mobileOpen?: boolean;
+  onChatSelect?: (chat: ChatUser) => void; // send chat data when clicked
 }
 
-export default function ChatList({ chats, mobileOpen = true }: ChatListProps) {
+export default function ChatList({
+  chats,
+  mobileOpen = true,
+  onChatSelect,
+}: ChatListProps) {
   const [width, setWidth] = useState(320); // default width
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isResizing = useRef(false);
 
@@ -56,10 +63,22 @@ export default function ChatList({ chats, mobileOpen = true }: ChatListProps) {
 
   const displayMode = getDisplayMode();
 
+  const handleChatClick = (id: string) => {
+    const selectedChat = chats.find((c) => c.id === id);
+    setSelectedChatId(id);
+
+    // Send to parent
+    if (onChatSelect && selectedChat) {
+      onChatSelect(selectedChat);
+    }
+
+    console.log("Selected chat:", selectedChat);
+  };
+
   return (
     <div
       ref={sidebarRef}
-      className={`h-screen p-2 border-r overflow-y-auto fixed md:relative transition-transform duration-300`}
+      className="h-screen p-4 border-r overflow-y-auto fixed md:relative transition-transform duration-300"
       style={{
         width,
         minWidth: 128,
@@ -82,10 +101,14 @@ export default function ChatList({ chats, mobileOpen = true }: ChatListProps) {
       {chats.map((chat) => (
         <ChatItem
           key={chat.id}
+          id={chat.id}
           name={chat.name || chat.username}
-          lastMessage={displayMode === "full" ? chat.lastMessage : ""}
+          lastMessage={chat.lastMessage}
           avatar={chat.profileImageUrl}
-          active={chat.online}
+          online={chat.online}
+          displayMode={displayMode}
+          isSelected={selectedChatId === chat.id}
+          onClick={handleChatClick}
         />
       ))}
 

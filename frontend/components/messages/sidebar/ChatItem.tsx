@@ -1,25 +1,31 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 interface ChatItemProps {
+  id: string;
   name: string;
   lastMessage?: string;
   avatar?: string | null;
-  active?: boolean;
+  isSelected?: boolean;
+  onClick: (id: string) => void;
   displayMode?: "icon-only" | "avatar-name" | "full";
+  online?: boolean;
 }
 
 export default function ChatItem({
+  id,
   name,
   lastMessage,
   avatar,
-  active = false,
+  isSelected = false,
+  onClick,
   displayMode = "full",
+  online = false,
 }: ChatItemProps) {
   const [imgError, setImgError] = useState(false);
 
-  // Extract text from JSON message
+  // Extract last message safely
   let messageText = "";
   if (lastMessage) {
     if (typeof lastMessage === "string") {
@@ -40,33 +46,49 @@ export default function ChatItem({
 
   return (
     <div
+      onClick={() => onClick(id)}
       className={`flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-all duration-300 group
-        ${active ? "border border-[var(--bg-brand-3)]" : ""}
+        ${
+          isSelected
+            ? "bg-[var(--bg-dark-3)] border border-[var(--color-brand-mid)] shadow-[var(--shadow-brand-1)]"
+            : "hover:bg-[var(--bg-dark-3)] hover:shadow-[var(--shadow-brand-2)]"
+        }
       `}
-      style={{
-        background: active ? "var(--bg-dark-3)" : "transparent",
-      }}
     >
       {/* Avatar */}
-      <div className={`relative rounded-full overflow-hidden`} style={{ width: displayMode === "icon-only" ? 40 : 48, height: displayMode === "icon-only" ? 40 : 48 }}>
+      <div
+        className="relative rounded-full overflow-hidden shrink-0 transition-transform duration-300 group-hover:scale-105"
+        style={{
+          width: displayMode === "icon-only" ? 40 : 48,
+          height: displayMode === "icon-only" ? 40 : 48,
+        }}
+      >
         <img
           src={!imgError && avatar ? avatar : fallbackAvatar}
           alt={name}
           onError={() => setImgError(true)}
           className="w-full h-full object-cover rounded-full border-2 border-[var(--bg-dark-3)] group-hover:border-[var(--color-brand-mid)] transition-all duration-300"
         />
-        {active && (
+        {online && (
           <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-black"></span>
         )}
       </div>
 
-      {/* Info */}
-      {(displayMode === "avatar-name" || displayMode === "full") && (
+      {/* Name & Message */}
+      {displayMode !== "icon-only" && (
         <div className="flex-1 min-w-0">
-          <h4 className="text-[var(--text-primary)] font-medium truncate">{name}</h4>
-          {displayMode === "full" && (
-            <p className="text-sm text-[var(--text-muted)] truncate">
-              {messageText || "No message"}
+          <h4
+            className={`font-medium truncate transition-colors ${
+              isSelected
+                ? "text-[var(--color-brand-mid)]"
+                : "text-[var(--text-primary)]"
+            }`}
+          >
+            {name}
+          </h4>
+          {displayMode === "full" && messageText && (
+            <p className="text-sm text-[var(--text-secondary)] truncate">
+              {messageText}
             </p>
           )}
         </div>

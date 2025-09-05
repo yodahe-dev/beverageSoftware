@@ -233,7 +233,7 @@ export default function AllUsersPage() {
   };
 
   const handleUserClick = (username: string) => {
-    router.push(`/${username}`);
+    router.push(`/users/${username}`);
   };
 
   if (authLoading) {
