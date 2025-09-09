@@ -2,6 +2,10 @@ const jwt = require('jsonwebtoken');
 const { Chat } = require('../models');
 const { getConversationId } = require('../services/chatService');
 const userSockets = new Map();
+const chatUpload = require('../middlewares/chatUpload');
+const fs = require('fs');
+const path = require('path');
+
 
 module.exports = function setupSocket(io) {
   io.use((socket, next) => {
@@ -38,13 +42,15 @@ module.exports = function setupSocket(io) {
       });
     });
 
+    // Text message
     socket.on('message:send', async ({ receiverId, message }) => {
       try {
         if (!receiverId || !message || typeof message !== 'string') return;
 
+        // Store plain text in DB
         const content = {
           type: 'text',
-          body: message,
+          body: message.trim(),
           meta: {},
         };
 
@@ -66,7 +72,7 @@ module.exports = function setupSocket(io) {
           }
         }
 
-        // Send to sender (including current socket)
+        // Send to sender
         if (userSockets.has(userId)) {
           for (const sid of userSockets.get(userId)) {
             io.to(sid).emit('message:new', payload);
@@ -77,6 +83,92 @@ module.exports = function setupSocket(io) {
       }
     });
 
+    // File message (image/audio)
+    socket.on('message:file', async (data, callback) => {
+      try {
+        if (!data.type || !data.receiverId) {
+          return callback?.({ success: false, error: 'Missing type or receiverId' });
+        }
+
+        const conversationId = getConversationId(userId, data.receiverId);
+        let contentFiles = [];
+
+        if (data.type === 'image') {
+          if (!data.files || !Array.isArray(data.files) || data.files.length === 0) {
+            return callback?.({ success: false, error: 'No image files provided' });
+          }
+
+          contentFiles = data.files.map((f) => ({
+            type: 'image',
+            url: `/uploads/chat/${conversationId}/images/${f.filename}`,
+            name: f.originalname,
+            size: f.size,
+          }));
+        } else if (data.type === 'voice') {
+          if (!data.file) {
+            return callback?.({ success: false, error: 'No voice file provided' });
+          }
+
+          // Remove data URL prefix if present
+          const base64Data = data.file.includes(',')
+            ? data.file.split(',')[1]
+            : data.file;
+
+          const voiceDir = path.join(
+            __dirname,
+            '..',
+            'uploads',
+            'chat',
+            conversationId,
+            'voices'
+          );
+          if (!fs.existsSync(voiceDir)) fs.mkdirSync(voiceDir, { recursive: true });
+
+          const fileName = `voice-${Date.now()}.webm`;
+          const filePath = path.join(voiceDir, fileName);
+          fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+
+          contentFiles.push({
+            type: 'voice',
+            url: `/uploads/chat/${conversationId}/voices/${fileName}`,
+            name: fileName,
+            size: fs.statSync(filePath).size,
+          });
+        } else {
+          return callback?.({ success: false, error: 'Invalid file type' });
+        }
+
+        const newMsg = await Chat.create({
+          senderId: userId,
+          receiverId: data.receiverId,
+          conversationId,
+          content: contentFiles.length === 1 ? contentFiles[0] : contentFiles,
+          isSeen: false,
+          isDeleted: false,
+        });
+
+        const payload = newMsg.toJSON();
+
+        if (userSockets.has(data.receiverId)) {
+          for (const sid of userSockets.get(data.receiverId)) {
+            io.to(sid).emit('message:new', payload);
+          }
+        }
+
+        if (userSockets.has(userId)) {
+          for (const sid of userSockets.get(userId)) {
+            io.to(sid).emit('message:new', payload);
+          }
+        }
+
+        callback?.({ success: true, message: payload });
+      } catch (err) {
+        console.error('File upload error:', err);
+        callback?.({ success: false, error: err.message });
+      }
+    });
+
+    // Message seen
     socket.on('message:seen', async ({ messageId }) => {
       try {
         const msg = await Chat.findByPk(messageId);
