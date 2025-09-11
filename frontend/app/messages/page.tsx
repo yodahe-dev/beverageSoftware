@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
+import axios from "axios";
 import ChatList from "@/components/messages/sidebar/ChatList";
 import useAuth from "@/hooks/useAuth";
 import ChatHeader from "@/components/messages/ChatWindow/ChatHeader";
 import MessagesList from "@/components/messages/ChatWindow/MessagesList";
 import ChatInput from "@/components/messages/ChatWindow/ChatInput";
+import _ from "lodash";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -23,13 +25,11 @@ interface Message {
   id: string;
   senderId: string;
   receiverId: string;
-  content: { type: string; body: string; meta: any } | string;
+  content: { type: string; body?: string; meta?: any } | string;
   createdAt: string;
   isSeen: boolean;
   seenAt?: string | null;
 }
-
-let socket: Socket | null = null;
 
 export default function Page() {
   const [chats, setChats] = useState<ChatUser[]>([]);
@@ -37,38 +37,33 @@ export default function Page() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [typingUser, setTypingUser] = useState<string | null>(null);
-
-  const typingTimeout = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const socketRef = useRef<Socket | null>(null);
 
   const { user } = useAuth();
   const userId = user?.id;
 
-  // Scroll to bottom
+  // Scroll to bottom on messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, typingUser]);
 
-  const getConversationId = (a: string, b: string) => {
-    const sorted = [a, b].sort();
-    return `${sorted[0]}-${sorted[1]}`;
-  };
+  const getConversationId = (a: string, b: string) => [a, b].sort().join("-");
 
-  // Socket setup
+  // ---------------- Socket Setup ----------------
   useEffect(() => {
     if (!userId) return;
 
-    socket = io(BACKEND_URL!, {
+    const socket = io(BACKEND_URL!, {
       auth: { token: localStorage.getItem("token") },
     });
+    socketRef.current = socket;
 
-    socket.on("connect", () => console.log("✅ Socket connected", socket?.id));
+    socket.on("connect", () => console.log("✅ Socket connected", socket.id));
 
     socket.on("presence:update", ({ userId: uid, status }) => {
       setChats((prev) =>
-        prev.map((c) =>
-          c.id === uid ? { ...c, online: status === "online" } : c
-        )
+        prev.map((c) => (c.id === uid ? { ...c, online: status === "online" } : c))
       );
     });
 
@@ -83,95 +78,96 @@ export default function Page() {
 
     socket.on("message:seen", ({ messageId, seenAt }) => {
       setMessages((prev) =>
-        prev.map((m) =>
-          m.id === messageId ? { ...m, isSeen: true, seenAt } : m
-        )
+        prev.map((m) => (m.id === messageId ? { ...m, isSeen: true, seenAt } : m))
       );
     });
 
     socket.on("typing", ({ from, chatId, isTyping }) => {
       if (!activeChat || !userId) return;
-      const currentChatId = getConversationId(userId, activeChat.id);
-      if (chatId === currentChatId && from !== userId) {
+      if (chatId === getConversationId(userId, activeChat.id) && from !== userId) {
         setTypingUser(isTyping ? from : null);
       }
     });
 
     return () => {
-      socket?.disconnect();
+      socket.disconnect();
     };
   }, [userId, activeChat]);
 
-  // Fetch chats
-  useEffect(() => {
-    const fetchChats = async () => {
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/list`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        });
-        const data = await res.json();
-        if (data.success) setChats(data.data);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchChats();
-  }, []);
-
-  // Fetch messages
-  const fetchMessages = async (chat: ChatUser) => {
-    setActiveChat(chat);
+  // ---------------- Fetch Chats ----------------
+  const fetchChats = useCallback(async () => {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/chat/conversation/${chat.id}`, {
+      const { data } = await axios.get(`${BACKEND_URL}/api/list`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
-      const data = await res.json();
-      if (!data.error) {
-        setMessages(data.messages.reverse());
-        const chatId = getConversationId(userId!, chat.id);
-        socket?.emit("join:chat", { chatId });
-      }
+      if (data.success) setChats(data.data);
     } catch (err) {
       console.error(err);
     }
-  };
+  }, []);
 
-  const sendMessage = () => {
-    if (!newMessage.trim() || !activeChat || !socket || !userId) return;
+  useEffect(() => {
+    fetchChats();
+  }, [fetchChats]);
+
+  // ---------------- Fetch Messages ----------------
+  const fetchMessages = useCallback(
+    async (chat: ChatUser) => {
+      setActiveChat(chat);
+      try {
+        const { data } = await axios.get(`${BACKEND_URL}/api/chat/conversation/${chat.id}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        });
+        if (!data.error) {
+          setMessages(data.messages.reverse());
+          socketRef.current?.emit("join:chat", { chatId: getConversationId(userId!, chat.id) });
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    },
+    [userId]
+  );
+
+  // ---------------- Send Message ----------------
+  const sendMessage = useCallback(() => {
+    if (!newMessage.trim() || !activeChat || !socketRef.current || !userId) return;
 
     const chatId = getConversationId(userId, activeChat.id);
-
-    socket.emit("message:send", {
+    socketRef.current.emit("message:send", {
       receiverId: activeChat.id,
       message: newMessage.trim(),
     });
 
     setNewMessage("");
-    socket.emit("typing", { chatId, isTyping: false });
-  };
+    socketRef.current.emit("typing", { chatId, isTyping: false });
+  }, [newMessage, activeChat, userId]);
 
-  // Seen messages
+  // ---------------- Seen Messages ----------------
   useEffect(() => {
-    if (!activeChat || !socket) return;
+    if (!activeChat || !socketRef.current) return;
+
     messages.forEach((m) => {
       if (m.receiverId === userId && !m.isSeen) {
-        socket?.emit("message:seen", { messageId: m.id });
+        socketRef.current?.emit("message:seen", { messageId: m.id });
       }
     });
   }, [messages, activeChat, userId]);
 
-  // Typing handler
+  // ---------------- Typing Handler ----------------
+  const debounceTyping = useRef(
+    _.debounce((chatId: string, socket: Socket) => {
+      socket.emit("typing", { chatId, isTyping: false });
+    }, 1000)
+  ).current;
+
   const handleTyping = (value: string) => {
     setNewMessage(value);
-    if (!activeChat || !socket || !userId) return;
+    if (!activeChat || !socketRef.current || !userId) return;
+
     const chatId = getConversationId(userId, activeChat.id);
-
-    socket.emit("typing", { chatId, isTyping: true });
-
-    if (typingTimeout.current) clearTimeout(typingTimeout.current);
-    typingTimeout.current = setTimeout(() => {
-      socket?.emit("typing", { chatId, isTyping: false });
-    }, 1000);
+    socketRef.current.emit("typing", { chatId, isTyping: true });
+    debounceTyping(chatId, socketRef.current);
   };
 
   return (
@@ -192,7 +188,7 @@ export default function Page() {
               online={activeChat.online}
             />
 
-            <MessagesList              
+            <MessagesList
               activeChat={activeChat}
               messages={messages}
               userId={userId}
@@ -207,7 +203,7 @@ export default function Page() {
               onChange={handleTyping}
               onSend={sendMessage}
               receiverId={activeChat.id}
-              socket={socket}
+              socket={socketRef.current}
             />
           </>
         )}

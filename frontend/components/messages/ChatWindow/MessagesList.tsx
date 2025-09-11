@@ -1,4 +1,5 @@
 import React from "react";
+import VoicePlayer from "./VoicePlayer"; // <-- Import your custom voice player
 
 interface Message {
   id: string;
@@ -109,16 +110,7 @@ const MessagesList: React.FC<MessagesListProps> = ({
           ? parsedContent.url
           : `${BACKEND_URL}${parsedContent.url}`;
 
-      return (
-        <audio
-          controls
-          preload="metadata"
-          className="w-full rounded-lg"
-        >
-          <source src={voiceUrl} type="audio/webm" />
-          Your browser does not support the audio element.
-        </audio>
-      );
+      return <VoicePlayer url={voiceUrl} />; // <-- Use custom voice player
     }
 
     // Text message

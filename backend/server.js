@@ -5,6 +5,7 @@ const cookieParser = require('cookie-parser');
 const http = require('http');
 const { Server } = require('socket.io');
 const { sequelize } = require('./models');
+const path = require('path');
 
 // Routes
 const Signup = require('./routes/auth/SignUp_Route');
@@ -18,42 +19,42 @@ const postRoutes = require('./routes/post/postRoutes');
 const save = require('./routes/post/save');
 const like = require('./routes/post/like');
 const comment = require('./routes/post/comments');
-const PostView = require('./routes/post/PostView')
+const PostView = require('./routes/post/PostView');
 
 const setupSocket = require('./utils/socket');
 
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 8000;
-const path = require('path');
 
+// ===== CORS SETUP =====
+const allowedOrigins = (process.env.CLIENT_URL || '').split(',').map(url => url.trim());
+if (!allowedOrigins.length) console.warn('No CLIENT_URL defined for CORS');
 
-app.set('trust proxy', true);
-
-// ===== CORS SETUP (supports multiple origins) =====
-const allowedOrigins = process.env.CLIENT_URL.split(',').map(url => url.trim());
-
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS: ' + origin));
-    }
+    if (!origin || allowedOrigins.includes(origin)) callback(null, true);
+    else callback(new Error('Not allowed by CORS: ' + origin));
   },
   credentials: true,
 }));
 
 // ===== MIDDLEWARE =====
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
 
-// ===== TEST ROUTE =====
-app.get('/', async (req, res) => {
-  res.status(200).send('Welcome to our backend server!');
+// ===== STATIC FILES =====
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// ===== LOGGER (optional) =====
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
 });
+
+// ===== TEST ROUTE =====
+app.get('/', (req, res) => res.status(200).send('Welcome to our backend server!'));
 
 // ===== API ROUTES =====
 app.use('/api', Signup);
@@ -67,8 +68,7 @@ app.use('/api', postRoutes);
 app.use('/api', like);
 app.use('/api', save);
 app.use('/api', comment);
-app.use("/api", PostView);
-
+app.use('/api', PostView);
 
 // ===== SOCKET.IO SETUP =====
 const io = new Server(server, {
@@ -76,19 +76,18 @@ const io = new Server(server, {
     origin: allowedOrigins,
     methods: ['GET', 'POST'],
     credentials: true,
-  }
+  },
+  maxHttpBufferSize: 20 * 1024 * 1024, 
 });
 
 app.set('io', io);
-setupSocket(io);
+setupSocket(io)
 
-// ===== START SERVER AFTER DB SYNC =====
+// ===== START SERVER =====
 sequelize.sync()
   .then(() => {
     console.log('Database connected and synced.');
-    server.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
+    server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   })
   .catch(err => {
     console.error('DB sync failed:', err);
