@@ -208,6 +208,7 @@ async function verifyConnection() {
     const transporter = await transporterPromise;
     await transporter.verify();
     console.log('Email server connection verified');
+    
     return true;
   } catch (err) {
     console.error('Email server connection failed:', err.message);

@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+This is the frontend .env
+NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
 
-## Getting Started
+and this is Backend env
 
-First, run the development server:
+# PostgreSQL for Neon (used in production)
+DATABASE_URL="postgresql://neondb_owner:npg_EP8XogTCIv0w@ep-cold-darkness-adz8dlig-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+# App port
+PORT=8000
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+# Email credentials (do not commit this to GitHub!)
+EMAIL_USER=yodijone@gmail.com
+EMAIL_PASS=tyvqqpxzhxrifbus
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+# For encrypting sensitive data (must be 32 characters)
+ENCRYPTION_KEY=12345678901234567890123456789012
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# MySQL fallback (not used in current project)
+DB_NAME=BevFlow
+DB_USER=root
+DB_PASS=
+DB_HOST=127.0.0.1
+DB_DIALECT=mysql
 
-## Learn More
+# Important for CORS (mobile + web)
+# Use IP for mobile, localhost for web
+# CLIENT_URL=http://192.168.0.6:8081,http://localhost:8081
+# CLIENT_URL=http://127.0.0.1:5500
+CLIENT_URL=http://localhost:3000
 
-To learn more about Next.js, take a look at the following resources:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# For reference (not used by server code directly)
+backendurl=http://192.168.0.6:8000
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# JWT secret key
+JWT_SECRET=K3u9@92#nfU^88Qf!$kFmvZpLqI4bRt
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# Firebase credentials (used for cloud messaging/storage)
+FIREBASE_TYPE=service_account
+FIREBASE_PROJECT_ID=plusme-3ad39
+FIREBASE_PRIVATE_KEY_ID=81f8ff35e72356517919d4a237e20c8347267dc5
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9...snip...\n-----END PRIVATE KEY-----\n"
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-fbsvc@plusme-3ad39.iam.gserviceaccount.com
+FIREBASE_CLIENT_ID=116948227628926176259
+FIREBASE_AUTH_URI=https://accounts.google.com/o/oauth2/auth
+FIREBASE_TOKEN_URI=https://oauth2.googleapis.com/token
+FIREBASE_AUTH_PROVIDER_X509_CERT_URL=https://www.googleapis.com/oauth2/v1/certs
+FIREBASE_CLIENT_X509_CERT_URL=https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40plusme-3ad39.iam.gserviceaccount.com
+FIREBASE_UNIVERSE_DOMAIN=googleapis.com
+FIREBASE_STORAGE_BUCKET=plusme-3ad39.appspot.com
