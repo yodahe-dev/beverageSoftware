@@ -12,6 +12,9 @@ const Profile = require('./routes/profileRouter');
 const supliersRouter = require('./routes/suppliersRouter');
 const customerRouter = require('./routes/customerRouter')
 const brandRoute = require('./routes/brandRoute')
+const productRoute = require('./routes/productRouter')
+const salesRouter = require('./routes/salesRouter')
+const expenseRoute = require('./routes/expenseRoute')
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -49,6 +52,9 @@ app.use('/api', Profile);
 app.use('/api', supliersRouter);
 app.use('/api', customerRouter)
 app.use('/api', brandRoute)
+app.use('/api', productRoute)
+app.use('/api', expenseRoute)
+app.use('/api', salesRouter)
 
 // ===== DATABASE SYNC =====
 sequelize.sync({ force: true })
