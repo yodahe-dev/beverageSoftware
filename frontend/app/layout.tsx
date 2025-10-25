@@ -1,24 +1,33 @@
+// app/layout.tsx
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Sidebar from "@/components/Sidebar"; // import your Sidebar
 import "./globals.css";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
-
 export const metadata: Metadata = {
-  title: "PlusMe App",
-  description: "Modern Responsive UI/UX with React + Next",
+  title: "Beverage Business",
+  description: "Modern ERP Software for Beverage Business",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1.0"
+        />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex`}>
-        <main>
+      <body className={`font-sans flex h-screen overflow-hidden`}>
+        {/* Sidebar */}
+        <Sidebar />
+
+        {/* Main content */}
+        <main className="flex-1 overflow-auto bg-gray-900 text-gray-100">
           {children}
+          <footer className="text-center text-sm text-gray-600 py-4 border-t border-gray-800 mt-6">
+            &copy; {new Date().getFullYear()} +Me ERP. All rights reserved.
+          </footer>
         </main>
       </body>
     </html>

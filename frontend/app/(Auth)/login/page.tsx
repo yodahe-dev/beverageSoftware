@@ -1,321 +1,140 @@
-"use client";
+'use client';
 
-import { useState, useRef, useEffect } from "react";
-import axios from "axios";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { toast, Toaster } from "sonner";
-import { motion } from "framer-motion";
-import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaLockOpen } from "react-icons/fa";
-import LogoHeader from "@/components/auth/AuthHeader";
-import LoginForm from "@/components/auth/LoginForm";
-import LockedScreen from "@/components/auth/LockedScreen";
-import PasswordResetModal from "@/components/auth/PasswordResetModal";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+} from "@/components/ui/alert-dialog";
+import { Eye, EyeOff, Coffee, Beer, Glasses } from "lucide-react";
 
-const Login = () => {
+export default function LoginPage() {
   const router = useRouter();
-  const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isLocked, setIsLocked] = useState(false);
-  const [lockTime, setLockTime] = useState(0);
-  const [failedAttempts, setFailedAttempts] = useState(0);
-  const [showResetModal, setShowResetModal] = useState(false);
-  const [resetEmail, setResetEmail] = useState("");
-  const [resetStep, setResetStep] = useState(1);
-  const [resetToken, setResetToken] = useState("");
-  const [resetCode, setResetCode] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const particlesRef = useRef<any[]>([]);
-  const animationRef = useRef<number | null>(null);
-  const lockTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const Backend = process.env.NEXT_PUBLIC_BACKEND_URL;
-
-  // Check if user is already logged in
+  // Auto-login if token exists
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) router.push("/");
-
-    const storedLock = localStorage.getItem("loginLock");
-    if (storedLock) {
-      const { lockUntil, attempts } = JSON.parse(storedLock);
-      const now = Date.now();
-      if (now < lockUntil) {
-        setIsLocked(true);
-        setLockTime(Math.floor((lockUntil - now) / 1000));
-        setFailedAttempts(attempts);
-      } else {
-        localStorage.removeItem("loginLock");
-      }
-    }
-
-    const storedAttempts = localStorage.getItem("failedAttempts");
-    if (storedAttempts) setFailedAttempts(parseInt(storedAttempts));
+    const token = localStorage.getItem('erp_token');
+    if (token) router.push('/');
   }, [router]);
 
-  // Lock countdown
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    if (isLocked && lockTime > 0) {
-      interval = setInterval(() => {
-        setLockTime(prev => {
-          if (prev <= 1) {
-            clearInterval(interval as NodeJS.Timeout);
-            setIsLocked(false);
-            localStorage.removeItem("loginLock");
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-      if (lockTimeoutRef.current) clearTimeout(lockTimeoutRef.current);
-    };
-  }, [isLocked, lockTime]);
-
-  // Particle background
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const resizeCanvas = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-
-    class Particle {
-      x: number;
-      y: number;
-      size: number;
-      speedX: number;
-      speedY: number;
-      color: string;
-
-      constructor() {
-        this.x = Math.random() * (canvas?.width ?? window.innerWidth);
-        this.y = Math.random() * (canvas?.height ?? window.innerHeight);
-        this.size = Math.random() * 3 + 1;
-        this.speedX = Math.random() * 1 - 0.5;
-        this.speedY = Math.random() * 1 - 0.5;
-        this.color = `rgba(34, 197, 94, ${Math.random() * 0.4 + 0.1})`;
-      }
-
-      update() {
-        this.x += this.speedX;
-        this.y += this.speedY;
-        if (canvas) {
-          if (this.x > canvas.width || this.x < 0) this.speedX = -this.speedX;
-          if (this.y > canvas.height || this.y < 0) this.speedY = -this.speedY;
-        }
-      }
-
-      draw() {
-        if (!ctx) return;
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    const initParticles = () => {
-      particlesRef.current = [];
-      for (let i = 0; i < 80; i++) {
-        particlesRef.current.push(new Particle());
-      }
-    };
-
-    const animate = () => {
-      if (!ctx || !canvas) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      for (let i = 0; i < particlesRef.current.length; i++) {
-        for (let j = i; j < particlesRef.current.length; j++) {
-          const dx = particlesRef.current[i].x - particlesRef.current[j].x;
-          const dy = particlesRef.current[i].y - particlesRef.current[j].y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          if (distance < 100) {
-            ctx.beginPath();
-            ctx.strokeStyle = `rgba(34, 197, 94, ${0.1 * (1 - distance / 100)})`;
-            ctx.lineWidth = 0.5;
-            ctx.moveTo(particlesRef.current[i].x, particlesRef.current[i].y);
-            ctx.lineTo(particlesRef.current[j].x, particlesRef.current[j].y);
-            ctx.stroke();
-          }
-        }
-        particlesRef.current[i].update();
-        particlesRef.current[i].draw();
-      }
-
-      animationRef.current = requestAnimationFrame(animate);
-    };
-
-    initParticles();
-    animate();
-
-    return () => {
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
-      window.removeEventListener('resize', resizeCanvas);
-    };
-  }, []);
-
-  // Lockout handling
-  const handleLockout = () => {
-    const newAttempts = failedAttempts + 1;
-    setFailedAttempts(newAttempts);
-    localStorage.setItem("failedAttempts", newAttempts.toString());
-
-    if (newAttempts >= 5) {
-      let lockDuration = 3 * 60;
-      if (newAttempts === 6) lockDuration = 6 * 60;
-      else if (newAttempts >= 7) lockDuration = 12 * 60;
-      const lockUntil = Date.now() + lockDuration * 1000;
-      setIsLocked(true);
-      setLockTime(lockDuration);
-      localStorage.setItem("loginLock", JSON.stringify({ lockUntil, attempts: newAttempts }));
-    }
-  };
-
-  // Submit login
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLocked) {
-      toast.warning("Account locked", {
-        description: `Please try again in ${Math.floor(lockTime / 60)}m ${lockTime % 60}s`,
-        position: "top-center",
-        duration: 5000,
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
       });
-      return;
-    }
 
-    setIsLoading(true);
-    try {
-      const res = await axios.post(`${Backend}/api/login`, { identifier, password });
-      localStorage.setItem("token", res.data.token);
-      if (res.data.refreshToken) localStorage.setItem("refreshToken", res.data.refreshToken);
-      localStorage.removeItem("failedAttempts");
-      setFailedAttempts(0);
+      const data = await res.json();
 
-      toast.success("Login successful!", { description: "Welcome back to +Me!", position: "top-center", duration: 2000 });
-      setTimeout(() => router.push("/"), 1500);
-    } catch (err: any) {
-      setIsLoading(false);
-      let errorMessage = "An unexpected error occurred";
-      if (err.response) {
-        if (err.response.status === 401) {
-          errorMessage = "Invalid email or password";
-          handleLockout();
-        } else if (err.response.status === 403) {
-          if (err.response.data.error === "Email not verified") errorMessage = "Please verify your email before logging in";
-          else { errorMessage = "Account locked due to too many attempts"; handleLockout(); }
-        } else if (err.response.status === 429) errorMessage = "Too many requests. Please try again later";
-        else if (err.response.data && err.response.data.error) errorMessage = err.response.data.error;
-      } else if (err.message) errorMessage = err.message;
-
-      toast.error("Login failed", { description: errorMessage, position: "top-center", duration: 5000 });
+      if (res.ok) {
+        localStorage.setItem('erp_token', data.token); // Save token
+        localStorage.setItem('erp_user_email', email); // optional for autocomplete
+        router.push('/');
+      } else {
+        setError(data.message || 'Invalid credentials');
+      }
+    } catch (err) {
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
     }
-  };
-
-  // Password reset request
-  const handleResetRequest = async () => {
-    if (!resetEmail) {
-      toast.error("Email required", { description: "Please enter your email address", position: "top-center" });
-      return;
-    }
-    try {
-      const res = await axios.post(`${Backend}/api/forgot-password`, { email: resetEmail });
-      setResetToken(res.data.resetToken);
-      setResetStep(2);
-      toast.success("Reset code sent", { description: "Check your email for the reset code", position: "top-center" });
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.error || "Failed to send reset code";
-      toast.error("Reset failed", { description: errorMessage, position: "top-center" });
-    }
-  };
-
-  // Password reset
-  const handlePasswordReset = async () => {
-    if (!resetCode || !newPassword) {
-      toast.error("Missing information", { description: "Please enter both the code and new password", position: "top-center" });
-      return;
-    }
-    try {
-      await axios.post(`${Backend}/api/reset-password`, { resetToken, code: resetCode, newPassword });
-      toast.success("Password reset successful", { description: "You can now login with your new password", position: "top-center" });
-      setShowResetModal(false);
-      setResetStep(1);
-      setResetEmail("");
-      setResetCode("");
-      setNewPassword("");
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.error || "Failed to reset password";
-      toast.error("Reset failed", { description: errorMessage, position: "top-center" });
-    }
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white overflow-hidden relative">
-      <canvas ref={canvasRef} className="absolute inset-0 z-0" />
-      <Toaster richColors expand={true} />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950">
+      <div className="bg-gray-900 p-10 rounded-3xl shadow-xl w-full max-w-md border-r border-gray-700">
+        <h1 className="text-3xl font-bold mb-6 text-white text-center flex items-center justify-center gap-2">
+          <Beer size={28} className="text-yellow-400" /> Beverage ERP Login
+        </h1>
 
-      <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className="w-full max-w-md backdrop-blur-sm bg-black/20 rounded-2xl border border-green-500/20 shadow-[0_0_50px_#22c55e/10] overflow-hidden"
-        >
-          <LogoHeader />
-          <div className="p-8 pt-6">
-            {isLocked ? (
-              <LockedScreen lockTime={lockTime} failedAttempts={failedAttempts} formatTime={formatTime} />
-            ) : (
-              <LoginForm
-                identifier={identifier}
-                setIdentifier={setIdentifier}
-                password={password}
-                setPassword={setPassword}
-                handleSubmit={handleSubmit}
-                isLoading={isLoading}
-                setShowResetModal={setShowResetModal}
+        <form onSubmit={handleLogin} className="flex flex-col gap-5">
+          <div className="flex flex-col">
+            <Label className="text-gray-300">Email</Label>
+            <div className="relative">
+              <Input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="you@email.com"
+                required
+                autoComplete="email"
+                className="pr-10 bg-gray-800 text-white placeholder-gray-400 focus:ring-yellow-400 focus:border-yellow-400"
               />
-            )}
+              <Coffee className="absolute right-2 top-2.5 text-gray-400" size={20} />
+            </div>
           </div>
-        </motion.div>
-      </div>
 
-      {showResetModal && (
-        <PasswordResetModal
-          show={showResetModal}
-          setShow={setShowResetModal}
-          resetStep={resetStep}
-          setResetStep={setResetStep}
-          resetEmail={resetEmail}
-          setResetEmail={setResetEmail}
-          resetCode={resetCode}
-          setResetCode={setResetCode}
-          newPassword={newPassword}
-          setNewPassword={setNewPassword}
-          handleResetRequest={handleResetRequest}
-          handlePasswordReset={handlePasswordReset}
-        />
-      )}
+          <div className="flex flex-col">
+            <Label className="text-gray-300">Password</Label>
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                autoComplete="current-password"
+                className="pr-10 bg-gray-800 text-white placeholder-gray-400 focus:ring-yellow-400 focus:border-yellow-400"
+              />
+              <button
+                type="button"
+                className="absolute right-2 top-2.5 text-gray-400"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
+          </div>
+
+          <Button
+            type="submit"
+            disabled={loading}
+            className="mt-4 bg-gradient-to-r from-yellow-500 via-red-500 to-purple-600 hover:scale-105 transition-transform text-white font-bold"
+          >
+            {loading ? 'Logging in...' : 'Login'}
+          </Button>
+        </form>
+
+        {error && (
+          <AlertDialog open={!!error} onOpenChange={() => setError('')}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-red-500">Login Error</AlertDialogTitle>
+                <AlertDialogDescription>{error}</AlertDialogDescription>
+              </AlertDialogHeader>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+
+        <div className="mt-6 text-center text-gray-400 text-sm">
+          Secure ERP for
+          <span className="text-yellow-400 mx-1">Soft Drink</span>,
+          <span className="text-red-400 mx-1">Alcohol</span>,
+          <span className="text-blue-400 mx-1">Other Beverages</span>.
+        </div>
+
+        <div className="mt-6 flex justify-center gap-4 text-gray-400">
+          <Coffee size={24} aria-label="Soft Drink" role="img" className="hover:text-yellow-400 transition-colors" />
+          <Beer size={24} aria-label="Alcohol" role="img" className="hover:text-red-400 transition-colors" />
+          <Glasses size={24} aria-label="Other" role="img" className="hover:text-blue-400 transition-colors" />
+        </div>
+      </div>
     </div>
   );
-};
-
-export default Login;
+}

@@ -145,17 +145,19 @@
 
 
 :root {
-  /* ---------------- Brand Colors ---------------- */
-  --color-brand-start: #7c3aed;
-  --color-brand-mid: #9d4edd;
-  --color-brand-end: #d946ef;
+  /* ---------------- Brand Colors (ERP + Beverage) ---------------- */
+  /* Fresh and confident — green-teal with citrus accent */
+  --color-brand-start: #00b894;   /* Teal green */
+  --color-brand-mid: #00cec9;     /* Aqua cyan */
+  --color-brand-end: #a8eb12;     /* Lime zest */
 
-  /* ---------------- Black Background Gradients ---------------- */
+  /* Keep your main dark gradient background */
+  --main-bg: bg-gradient-to-br from-gray-950 via-gray-900 to-black;
+
+  /* ---------------- Background Gradients ---------------- */
   --bg-dark-1: linear-gradient(135deg, #000000 0%, #0f0f0f 50%, #1a1a1a 100%);
-  --bg-dark-2: linear-gradient(120deg, #000000 0%, #13001f 50%, #250030 100%);
-  --bg-dark-3: linear-gradient(145deg, #000000 0%, #2c003f 50%, #4b0082 100%);
-
-  /* ---------------- Brand Gradients ---------------- */
+  --bg-dark-2: linear-gradient(120deg, #000000 0%, #001a1f 50%, #002e33 100%);
+  --bg-dark-3: linear-gradient(145deg, #000000 0%, #003f2c 50%, #00824b 100%);
   --bg-brand-1: linear-gradient(to bottom right, var(--color-brand-start), var(--color-brand-mid));
   --bg-brand-2: linear-gradient(to bottom right, var(--color-brand-mid), var(--color-brand-end));
   --bg-brand-3: linear-gradient(to bottom right, var(--color-brand-start), var(--color-brand-end));
@@ -170,25 +172,20 @@
   --shadow-brand-2: 0 0 15px var(--color-brand-end);
   --shadow-brand-3: 0 0 25px var(--color-brand-start);
 
-  /* ---------------- Text Colors ---------------- */
-  --plusme-text-light: #f9f9f9;
-  --plusme-text-muted: #a3a3a3;
-  
-    /* Backgrounds */
+  /* ---------------- Backgrounds ---------------- */
   --bg-gradient-dark-3: linear-gradient(to bottom right, #000000, #0d0d0d, #1a1a1a);
-  --bg-gradient-brand: linear-gradient(to right, #7c3aed, #9d4edd, #d946ef);
+  --bg-gradient-brand: linear-gradient(to right, var(--color-brand-start), var(--color-brand-end));
   --bg-input: #121212;
   --modal-overlay: rgba(0, 0, 0, 0.75);
 
-  /* Brand Colors */
-  --color-brand-start: #7c3aed;
-  --color-brand-mid: #9d4edd;
-  --color-brand-end: #d946ef;
+  /* ---------------- State Colors ---------------- */
+  --color-success: #00e676;   /* Bright success green */
+  --color-warning: #ffb300;   /* Vibrant warning yellow-orange */
+  --color-error: #ff1744;     /* Optional for alerts */
 
-  /* Text */
+  /* ---------------- Text ---------------- */
   --text-primary: #ffffff;
   --text-secondary: #cccccc;
   --text-muted: #999999;
   --text-light: #ffffff;
 }
-

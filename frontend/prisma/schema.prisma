@@ -1,0 +1,344 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = "postgresql://yodahe:0000@localhost:5000/bevflow_shadow"
+}
+
+
+/// =======================================
+/// 🌍 MODELS (Full ERP for multi-store beverage suppliers)
+/// =======================================
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      UserRole @default(staff)
+  isActive  Boolean  @default(true)
+  sales     Sales[]
+  credits   Credit[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum UserRole {
+  admin
+  manager
+  staff
+}
+
+/// ----------------------------------
+
+model Store {
+  id         String    @id @default(uuid())
+  name       String
+  address    String
+  note       String?
+  isActive   Boolean   @default(true)
+  brands     Brand[]
+  suppliers  Supplier[]
+  customers  Customer[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+}
+
+/// ----------------------------------
+
+model Customer {
+  id         String        @id @default(uuid())
+  storeId    String
+  name       String
+  address    String
+  type       CustomerType  @default(individual)
+  note       String?
+  isActive   Boolean       @default(true)
+  phones     Phone[]       @relation("CustomerPhones")
+  sales      Sales[]
+  credits    Credit[]
+  orders     Order[]
+  store      Store         @relation(fields: [storeId], references: [id])
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  deletedAt  DateTime?
+
+  @@index([type])
+  @@index([isActive])
+}
+
+enum CustomerType {
+  bar
+  individual
+  shop
+  restaurant
+  other
+}
+
+/// ----------------------------------
+
+model Phone {
+  id             String     @id @default(uuid())
+  phoneNumber    String
+  contactName    String?
+  type           PhoneType  @default(mobile)
+  note           String?
+  phoneableType  String
+  phoneableId    String
+  customer       Customer?  @relation("CustomerPhones", fields: [phoneableId], references: [id], map: "Phone_Customer_fkey")
+  supplier       Supplier?  @relation("SupplierPhones", fields: [phoneableId], references: [id], map: "Phone_Supplier_fkey")
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([phoneNumber])
+}
+
+enum PhoneType {
+  mobile
+  work
+  home
+  other
+}
+
+/// ----------------------------------
+
+model Brand {
+  id         String      @id @default(uuid())
+  storeId    String
+  name       String      @unique
+  type       BrandType
+  note       String?
+  subbrands  SubBrand[]
+  suppliers  Supplier[]
+  store      Store       @relation(fields: [storeId], references: [id])
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  deletedAt  DateTime?
+
+  @@index([type])
+}
+
+enum BrandType {
+  softdrink
+  alcohol
+  other
+}
+
+/// ----------------------------------
+
+model SubBrand {
+  id         String     @id @default(uuid())
+  name       String
+  brandId    String
+  note       String?
+  brand      Brand      @relation(fields: [brandId], references: [id])
+  products   Product[]
+  saleItems  SaleItem[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  deletedAt  DateTime?
+
+  @@unique([name, brandId])
+}
+
+/// ----------------------------------
+
+model Product {
+  id         String     @id @default(uuid())
+  name       String
+  price      Decimal    @db.Decimal(12, 2)   // Can keep this as base price if needed
+  quantity   Int        @default(0)
+  sellPrice  Decimal?   @db.Decimal(12, 2)
+  costPrice  Decimal?   @db.Decimal(12, 2)
+  category   ProductCategory
+  note       String?
+  subbrandId String
+  subbrand   SubBrand   @relation(fields: [subbrandId], references: [id])
+  saleItems  SaleItem[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  deletedAt  DateTime?
+
+  @@index([name])
+}
+
+enum ProductCategory {
+  drink
+  bottle
+  both
+}
+
+
+/// ----------------------------------
+
+model Supplier {
+  id         String    @id @default(uuid())
+  storeId    String
+  name       String
+  email      String?
+  location   String
+  note       String?
+  brands     Brand[]
+  phones     Phone[]   @relation("SupplierPhones")
+  store      Store     @relation(fields: [storeId], references: [id])
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+}
+
+/// ----------------------------------
+
+model Expense {
+  id         String     @id @default(uuid())
+  title      String
+  amount     Decimal    @db.Decimal(12, 2)
+  quantity   Int        @default(1)
+  category   ExpenseCategory @default(other)
+  note       String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  deletedAt  DateTime?
+}
+
+enum ExpenseCategory {
+  home
+  work
+  both
+  other
+}
+
+/// ----------------------------------
+
+model Sales {
+  id             String       @id @default(uuid())
+  reference      String       @unique @default(cuid())
+  totalAmount    Decimal      @db.Decimal(12, 2) @default(0)
+  paymentMethod  PaymentMethod
+  status         SaleStatus   @default(pending)
+  note           String?
+  customerId     String?
+  userId         String
+  customer       Customer?    @relation(fields: [customerId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+  items          SaleItem[]
+  credits        Credit[]     @relation("SalesCredits")
+  orders         Order[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  deletedAt      DateTime?
+
+  @@index([status])
+}
+
+enum PaymentMethod {
+  cash
+  transfer
+  credit
+}
+
+enum SaleStatus {
+  pending
+  completed
+  cancelled
+  partially_paid
+}
+
+/// ----------------------------------
+
+model SaleItem {
+  id           String     @id @default(uuid())
+  category     SaleCategory
+  quantity     Int
+  drinkPrice   Decimal?   @db.Decimal(12, 2)
+  bottlePrice  Decimal?   @db.Decimal(12, 2)
+  subtotal     Decimal    @db.Decimal(12, 2)
+  note         String?
+  salesId      String
+  productId    String
+  subbrandId   String
+  sales        Sales      @relation(fields: [salesId], references: [id])
+  product      Product    @relation(fields: [productId], references: [id])
+  subbrand     SubBrand   @relation(fields: [subbrandId], references: [id])
+  credits      Credit[]   @relation("SaleItemCredits")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deletedAt    DateTime?
+
+  @@index([salesId])
+}
+
+enum SaleCategory {
+  drink
+  bottle
+  both
+}
+
+/// ----------------------------------
+
+model Credit {
+  id            String       @id @default(uuid())
+  customerId    String
+  userId        String
+  saleId        String
+  saleItemId    String
+  quantity      Int
+  creditPrice   Decimal      @db.Decimal(12, 2)
+  returnPrice   Decimal      @db.Decimal(12, 2)
+  totalAmount   Decimal      @db.Decimal(12, 2)
+  paidAmount    Decimal      @db.Decimal(12, 2) @default(0)
+  balance       Decimal      @db.Decimal(12, 2)
+  status        CreditStatus @default(active)
+  dueDate       DateTime?
+  note          String?
+  customer      Customer     @relation(fields: [customerId], references: [id])
+  user          User         @relation(fields: [userId], references: [id])
+  saleItem      SaleItem     @relation("SaleItemCredits", fields: [saleItemId], references: [id])
+  sales         Sales        @relation("SalesCredits", fields: [saleId], references: [id])
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  deletedAt     DateTime?
+
+  @@index([status])
+}
+
+enum CreditStatus {
+  active
+  partially_paid
+  paid
+  overdue
+}
+
+/// ----------------------------------
+
+model Order {
+  id              String       @id @default(uuid())
+  name            String
+  phoneNumbers    Json
+  location        String
+  note            String?
+  status          OrderStatus  @default(pending)
+  deliveryPerson  String?
+  deliveryDate    DateTime?
+  deliveryNote    String?
+  customerId      String?
+  salesId         String
+  customer        Customer?    @relation(fields: [customerId], references: [id])
+  sale            Sales        @relation(fields: [salesId], references: [id])
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
+
+  @@index([status])
+}
+
+enum OrderStatus {
+  pending
+  processing
+  shipped
+  delivered
+  cancelled
+}
