@@ -1,247 +1,437 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useCallback } from 'react';
-import InfiniteScroll from 'react-infinite-scroll-component';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Loader2, Trash2, Edit2, Plus, RefreshCw, Eye } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
-import { toast } from 'react-hot-toast';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import axios from 'axios';
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import toast from "react-hot-toast";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Plus, Trash2, Phone, Edit, Check } from "lucide-react";
 
-interface Store {
+type Store = { id: string; name: string; address?: string };
+type SupplierPhone = {
+  id?: string;
+  phoneNumber: string;
+  contactName?: string;
+  type?: "mobile" | "work" | "home" | "other";
+  note?: string | null;
+};
+type Supplier = {
   id: string;
   name: string;
-  address: string;
-  note?: string;
-  isActive: boolean;
-  brands?: string[];
-}
+  email?: string | null;
+  location: string;
+  note?: string | null;
+  store?: Store | null;
+  phones?: SupplierPhone[];
+  createdAt?: string;
+};
 
-export default function StoresPage() {
+export default function SuppliersPage() {
+  // data
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+
+  // UI state
   const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState('');
-  const [openForm, setOpenForm] = useState(false);
-  const [formLoading, setFormLoading] = useState(false);
-  const [editStore, setEditStore] = useState<Store | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [openCreate, setOpenCreate] = useState(false);
+  const [openPhone, setOpenPhone] = useState(false);
+  const [selectedSupplierForPhone, setSelectedSupplierForPhone] = useState<Supplier | null>(null);
+  const [search, setSearch] = useState("");
 
-  const initialForm = { name: '', address: '', note: '', isActive: true };
-  const [form, setForm] = useState(initialForm);
+  // create supplier form
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [location, setLocation] = useState(""); // backend requires non-undefined
+  const [note, setNote] = useState("");
+  const [storeId, setStoreId] = useState<string | null>(null);
 
-  // ---------------- Fetch Stores ----------------
-  const fetchStores = async (reset = false) => {
+  // phone form (dynamic list)
+  const [phones, setPhones] = useState<SupplierPhone[]>([
+    { phoneNumber: "", contactName: "", type: "mobile", note: null },
+  ]);
+
+  // fetch suppliers and stores
+  async function fetchStores() {
     try {
-      setLoading(true);
-      const res = await axios.get(`/api/stores?page=${reset ? 1 : page}&limit=50&search=${search}`);
-      const data: Store[] = res.data;
-      if (reset) setStores(data);
-      else setStores((prev) => [...prev, ...data]);
-      setHasMore(data.length === 50);
-      setPage(reset ? 2 : page + 1);
+      const res = await axios.get("/api/stores");
+      const data = Array.isArray(res.data) ? res.data : [];
+      setStores(data);
     } catch (err) {
-      toast.error('Failed to fetch stores');
+      console.error(err);
+      toast.error("Failed to fetch stores");
+    }
+  }
+
+  async function fetchSuppliers() {
+    setLoading(true);
+    try {
+      // your suppliers API returns { data, pagination, filters }
+      const res = await axios.get("/api/suppliers", {
+        params: { search, limit: 50, sort_by: "createdAt", sort_order: "desc" },
+      });
+      const list = Array.isArray(res.data.data) ? res.data.data : [];
+      setSuppliers(list);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to fetch suppliers");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   useEffect(() => {
-    fetchStores(true);
+    fetchStores();
+    fetchSuppliers();
+  }, []);
+
+  useEffect(() => {
+    // simple debounce for search
+    const t = setTimeout(() => fetchSuppliers(), 350);
+    return () => clearTimeout(t);
   }, [search]);
 
-  const debounce = (fn: Function, delay: number) => {
-    let timeout: NodeJS.Timeout;
-    return (...args: any) => {
-      if (timeout) clearTimeout(timeout);
-      timeout = setTimeout(() => fn(...args), delay);
-    };
-  };
-  const handleSearch = useCallback(debounce((v: string) => setSearch(v), 500), []);
+  // supplier create
+  async function handleCreateSupplier() {
+    if (!name.trim()) return toast.error("Supplier name required");
+    if (!storeId) return toast.error("Select a store");
 
-  // ---------------- Save / Update Store ----------------
-  const handleSaveStore = async () => {
-    if (!form.name || !form.address) return toast.error('Name and address required');
-    setFormLoading(true);
     try {
-      if (editStore) {
-        await axios.put(`/api/stores/${editStore.id}`, form);
-        toast.success('Store updated');
-      } else {
-        await axios.post(`/api/stores`, form);
-        toast.success('Store created');
+      const payload = {
+        name: name.trim(),
+        email: email ? email.trim() : undefined,
+        location: location ? location.trim() : "", // backend expects string for location
+        note: note ? note.trim() : undefined,
+        storeId,
+      };
+
+      const res = await axios.post("/api/suppliers", payload);
+      const created: Supplier = res.data;
+      toast.success("Supplier created");
+
+      // reset create form
+      setName("");
+      setEmail("");
+      setLocation("");
+      setNote("");
+      setStoreId(null);
+      setOpenCreate(false);
+
+      // after create we open phone dialog for this supplier
+      setSelectedSupplierForPhone(created);
+      setPhones([{ phoneNumber: "", contactName: "", type: "mobile", note: null }]);
+      setOpenPhone(true);
+
+      // refresh list
+      fetchSuppliers();
+    } catch (err: any) {
+      console.error("create supplier error:", err);
+      toast.error(err?.response?.data?.error || err?.response?.data?.message || "Failed to create supplier");
+    }
+  }
+
+  // phones handling
+  function addPhoneRow() {
+    setPhones((p) => [...p, { phoneNumber: "", contactName: "", type: "mobile", note: null }]);
+  }
+  function updatePhoneRow(idx: number, field: keyof SupplierPhone, value: any) {
+    setPhones((prev) => {
+      const cp = [...prev];
+      cp[idx] = { ...cp[idx], [field]: value };
+      return cp;
+    });
+  }
+  function removePhoneRow(idx: number) {
+    setPhones((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  async function handleSavePhones() {
+    if (!selectedSupplierForPhone) return toast.error("No supplier selected");
+    const supplierId = selectedSupplierForPhone.id;
+
+    // validate at least one phoneNumber filled
+    const validPhones = phones
+      .map((p) => ({
+        phoneNumber: (p.phoneNumber || "").trim(),
+        contactName: p.contactName ? String(p.contactName).trim() : undefined,
+        type: p.type || undefined,
+        note: p.note ?? undefined,
+      }))
+      .filter((p) => p.phoneNumber.length > 0);
+
+    if (validPhones.length === 0) return toast.error("Enter at least one phone number");
+
+    try {
+      // POST phones one by one (API supports creating single phone per endpoint)
+      for (const ph of validPhones) {
+        await axios.post(`/api/suppliers/${supplierId}/phone`, ph);
       }
-      setForm(initialForm);
-      setEditStore(null);
-      setOpenForm(false);
-      fetchStores(true);
+      toast.success("Phone(s) saved");
+      setOpenPhone(false);
+      setSelectedSupplierForPhone(null);
+      fetchSuppliers();
+    } catch (err: any) {
+      console.error("save phones error:", err);
+      toast.error(err?.response?.data?.error || "Failed to save phones");
+    }
+  }
+
+  // delete supplier (soft delete via backend if implemented; otherwise permanent)
+  async function handleDeleteSupplier(id: string) {
+    if (!confirm("Delete supplier? This may be permanent.")) return;
+    try {
+      await axios.delete(`/api/suppliers/${id}`);
+      toast.success("Supplier deleted");
+      fetchSuppliers();
     } catch (err) {
-      toast.error('Failed to save store');
-    } finally {
-      setFormLoading(false);
+      console.error(err);
+      toast.error("Failed to delete supplier");
     }
-  };
+  }
 
-  const handleEdit = (s: Store) => {
-    setEditStore(s);
-    setForm({ name: s.name, address: s.address, note: s.note || '', isActive: s.isActive });
-    setOpenForm(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      await axios.delete(`/api/stores/${id}`);
-      toast.success('Store deleted');
-      fetchStores(true);
-    } catch {
-      toast.error('Failed to delete store');
-    }
-  };
-
-  const toggleSelect = (id: string) => {
-    const s = new Set(selected);
-    s.has(id) ? s.delete(id) : s.add(id);
-    setSelected(s);
-  };
-  const toggleSelectAll = () => setSelected(selected.size === stores.length ? new Set() : new Set(stores.map((s) => s.id)));
-  const handleBulkDelete = async () => {
-    if (selected.size === 0) return toast.error('No store selected');
-    try {
-      await Promise.all([...selected].map((id) => axios.delete(`/api/stores/${id}`)));
-      toast.success('Selected deleted');
-      setSelected(new Set());
-      fetchStores(true);
-    } catch {
-      toast.error('Failed to delete selected');
-    }
-  };
-
-  // ---------------- RENDER ----------------
+  // UI pieces
   return (
-    <div className="h-screen w-full p-6 text-white bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950">
+    <div className="min-h-screen p-6 bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950 text-white">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-white">Stores</h1>
-        <Dialog open={openForm} onOpenChange={setOpenForm}>
-          <DialogTrigger asChild>
-            <Button className="flex items-center gap-2 bg-gradient-to-r from-[#00b894] to-[#00cec9] text-black font-semibold hover:opacity-90">
-              <Plus size={18} /> {editStore ? 'Edit' : 'Add'} Store
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="bg-[#121212] text-white border border-gray-700 rounded-xl shadow-xl">
-            <DialogHeader>
-              <DialogTitle>{editStore ? 'Edit Store' : 'Add New Store'}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3">
-              <div>
-                <Label>Name</Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="bg-[#121212] border-gray-700 text-white" />
-              </div>
-              <div>
-                <Label>Address</Label>
-                <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="bg-[#121212] border-gray-700 text-white" />
-              </div>
-              <div>
-                <Label>Note</Label>
-                <Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} className="bg-[#121212] border-gray-700 text-white" />
-              </div>
-              <div className="flex gap-2 items-center">
-                <Checkbox checked={form.isActive} onCheckedChange={(val) => setForm({ ...form, isActive: val as boolean })} />
-                <span>Active</span>
-              </div>
-              <Button onClick={handleSaveStore} disabled={formLoading} className="w-full bg-gradient-to-r from-[#00cec9] to-[#a8eb12] text-black font-semibold">
-                {formLoading ? <Loader2 className="animate-spin mr-2" /> : 'Save'}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+        <div>
+          <h1 className="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-green-300 via-green-400 to-emerald-400">
+            Suppliers
+          </h1>
+          <p className="text-sm text-gray-400 mt-1">Manage suppliers and phone contacts</p>
+        </div>
 
-      {/* Search & Bulk */}
-      <div className="flex justify-between items-center mb-4 gap-2">
-        <Input placeholder="Search stores..." onChange={(e) => handleSearch(e.target.value)} className="w-full max-w-md bg-[#121212] border-gray-700 text-white" />
-        <div className="flex gap-2">
-          <Button onClick={toggleSelectAll}>Select All</Button>
-          <Button onClick={handleBulkDelete} className="bg-red-800">Delete Selected</Button>
-          <Button onClick={() => fetchStores(true)} className="bg-gray-600"><RefreshCw size={16} /></Button>
+        <div className="flex items-center gap-3">
+          <Input
+            placeholder="Search name, email, location..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="bg-black/40 border-gray-700 text-white"
+          />
+
+          <Dialog open={openCreate} onOpenChange={setOpenCreate}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-to-r from-green-400 to-green-500 text-black flex items-center gap-2">
+                <Plus size={16} /> New Supplier
+              </Button>
+            </DialogTrigger>
+
+            <DialogContent className="bg-black/60 backdrop-blur-md border border-gray-700 rounded-xl p-4 max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Create Supplier</DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-3 mt-2">
+                <Label>Store</Label>
+                <Select value={storeId || ""} onValueChange={(v) => setStoreId(v || null)}>
+                  <SelectTrigger className="bg-black/30 border-gray-700 text-white">
+                    <SelectValue placeholder="Select store" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stores.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name} {s.address ? `— ${s.address}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Label>Name</Label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} className="bg-black/30 border-gray-700" placeholder="Supplier name" />
+
+                <Label>Email</Label>
+                <Input value={email} onChange={(e) => setEmail(e.target.value)} className="bg-black/30 border-gray-700" placeholder="Optional email" />
+
+                <Label>Location</Label>
+                <Input value={location} onChange={(e) => setLocation(e.target.value)} className="bg-black/30 border-gray-700" placeholder="City / Address (required by model)" />
+
+                <Label>Note</Label>
+                <Input value={note} onChange={(e) => setNote(e.target.value)} className="bg-black/30 border-gray-700" placeholder="Optional note" />
+              </div>
+
+              <DialogFooter>
+                <div className="flex gap-2 w-full">
+                  <Button variant="ghost" onClick={() => setOpenCreate(false)}>Cancel</Button>
+                  <Button className="ml-auto bg-gradient-to-r from-green-400 to-green-500 text-black" onClick={handleCreateSupplier}>
+                    Create & Add Phone
+                  </Button>
+                </div>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
-      {/* Infinite Scroll */}
-      <InfiniteScroll dataLength={stores.length} next={() => fetchStores(false)} hasMore={hasMore} loader={<div className="flex justify-center py-4"><Loader2 className="animate-spin" /></div>}>
-        <Card className="bg-[#121212] border border-gray-700 shadow-lg rounded-xl">
-          <CardHeader className="sticky top-0 bg-[#121212] z-10">
-            <CardTitle>Store List</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {stores.length === 0 ? <p className="text-gray-400 text-center py-6">No stores found</p> : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm text-left text-gray-300">
-                  <thead className="bg-gradient-to-r from-[#00b894] to-[#00cec9] text-black sticky top-0">
-                    <tr>
-                      <th className="px-4 py-2"><Checkbox checked={selected.size === stores.length} onCheckedChange={toggleSelectAll} /></th>
-                      <th className="px-4 py-2">Name</th>
-                      <th className="px-4 py-2">Address</th>
-                      <th className="px-4 py-2">Note</th>
-                      <th className="px-4 py-2">Status</th>
-                      <th className="px-4 py-2">Brands</th>
-                      <th className="px-4 py-2">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stores.map((s) => (
-                      <tr key={s.id} className={`border-b border-gray-700 transition ${selected.has(s.id) ? 'bg-[#00cec9]/20' : 'hover:bg-[#1a1a1a]'}`}>
-                        <td className="px-4 py-3"><Checkbox checked={selected.has(s.id)} onCheckedChange={() => toggleSelect(s.id)} /></td>
-                        <td className="px-4 py-3">{s.name}</td>
-                        <td className="px-4 py-3">{s.address}</td>
-                        <td className="px-4 py-3">{s.note}</td>
-                        <td className="px-4 py-3">
-                          <span className={`px-2 py-1 rounded-md text-xs font-semibold ${s.isActive ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>{s.isActive ? 'Active' : 'Inactive'}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button className="text-white p-1 bg-gray-700"><Eye size={16} /></Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="bg-[#121212] text-white border border-gray-700">
-                              {s.brands?.length ? s.brands.map((b, i) => <div key={i} className="py-1">{b}</div>) : <div className="py-1 text-gray-400">No brands</div>}
-                            </PopoverContent>
-                          </Popover>
-                        </td>
-                        <td className="px-4 py-3 flex gap-1">
-                          <Button onClick={() => handleEdit(s)} className="bg-blue-600 p-1"><Edit2 size={16} /></Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button className="bg-red-600 p-1"><Trash2 size={16} /></Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent className="bg-[#121212] text-white border border-gray-700">
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Store?</AlertDialogTitle>
-                              </AlertDialogHeader>
-                              <div className="flex justify-end gap-2 mt-4">
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDelete(s.id)} className="bg-red-700">Delete</AlertDialogAction>
-                              </div>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+      {/* Suppliers grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {loading ? (
+          <div className="col-span-full text-center text-gray-400">Loading...</div>
+        ) : suppliers.length === 0 ? (
+          <div className="col-span-full text-center text-gray-400">No suppliers found</div>
+        ) : (
+          suppliers.map((s) => (
+            <Card key={s.id} className="bg-black/40 border border-gray-800 shadow-md">
+              <CardHeader className="flex justify-between items-start">
+                <div>
+                  <h3 className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-green-300 to-emerald-300">{s.name}</h3>
+                  <p className="text-xs text-gray-400">{s.store?.name || "No store"}</p>
+                </div>
+
+                <div className="flex gap-2 items-center">
+                  <button
+                    title="Add / edit phones"
+                    onClick={() => {
+                      setSelectedSupplierForPhone(s);
+                      setPhones([{ phoneNumber: "", contactName: "", type: "mobile", note: null }]);
+                      setOpenPhone(true);
+                    }}
+                    className="p-2 rounded-md hover:bg-gray-800/40"
+                  >
+                    <Phone size={16} />
+                  </button>
+
+                  <button
+                    title="Delete supplier"
+                    onClick={() => handleDeleteSupplier(s.id)}
+                    className="p-2 rounded-md hover:bg-red-900/20"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </CardHeader>
+
+              <CardContent className="space-y-2">
+                <p className="text-sm text-gray-300">{s.email || "-"}</p>
+                <p className="text-sm text-gray-300">Location: {s.location || "-"}</p>
+                {s.note && <p className="text-sm text-gray-400 italic">Note: {s.note}</p>}
+
+                <div className="mt-2">
+                  <h4 className="text-sm font-medium text-gray-200 flex items-center gap-2">
+                    Phones
+                  </h4>
+                  <ul className="text-sm text-gray-300 mt-1 list-disc list-inside space-y-1">
+                    {s.phones && s.phones.length > 0 ? (
+                      s.phones.map((p, i) => (
+                        <li key={i}>
+                          {p.phoneNumber} {p.contactName ? `— ${p.contactName}` : ""} <span className="text-xs text-gray-400">({p.type})</span>
+                        </li>
+                      ))
+                    ) : (
+                      <li className="text-gray-500">No phones</li>
+                    )}
+                  </ul>
+                </div>
+
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={() => {
+                      setSelectedSupplierForPhone(s);
+                      // prefill with existing phones if any
+                      setPhones(s.phones && s.phones.length > 0 ? s.phones.map(ph => ({ ...ph })) : [{ phoneNumber: "", contactName: "", type: "mobile", note: null }]);
+                      setOpenPhone(true);
+                    }}
+                    className="px-3 py-2 bg-gradient-to-r from-green-400 to-green-500 text-black rounded-md"
+                  >
+                    <Edit size={14} /> &nbsp; Manage Phones
+                  </button>
+
+                  <div className="ml-auto text-xs text-gray-400">
+                    Added: {s.createdAt ? new Date(s.createdAt).toLocaleDateString() : "-"}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* Phone dialog */}
+      <Dialog open={openPhone} onOpenChange={(v) => { setOpenPhone(v); if (!v) setSelectedSupplierForPhone(null); }}>
+        <DialogContent className="bg-black/60 backdrop-blur-md border border-gray-700 rounded-xl p-4 max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{selectedSupplierForPhone ? `Phones for ${selectedSupplierForPhone.name}` : "Add Phones"}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 mt-2">
+            {selectedSupplierForPhone && (
+              <p className="text-sm text-gray-300">Supplier: <strong>{selectedSupplierForPhone.name}</strong> — Store: <span className="text-gray-400">{selectedSupplierForPhone.store?.name || "-"}</span></p>
             )}
-          </CardContent>
-        </Card>
-      </InfiniteScroll>
+
+            {phones.map((p, i) => (
+              <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                <div className="col-span-5">
+                  <Label>Phone</Label>
+                  <Input
+                    value={p.phoneNumber}
+                    onChange={(e) => updatePhoneRow(i, "phoneNumber", e.target.value)}
+                    placeholder="e.g., 0912345678"
+                    className="bg-black/30 border-gray-700"
+                  />
+                </div>
+
+                <div className="col-span-4">
+                  <Label>Contact</Label>
+                  <Input
+                    value={p.contactName}
+                    onChange={(e) => updatePhoneRow(i, "contactName", e.target.value)}
+                    placeholder="Contact name"
+                    className="bg-black/30 border-gray-700"
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <Label>Type</Label>
+                  <Select value={p.type || "mobile"} onValueChange={(v) => updatePhoneRow(i, "type", v as any)}>
+                    <SelectTrigger className="bg-black/30 border-gray-700 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mobile">mobile</SelectItem>
+                      <SelectItem value="work">work</SelectItem>
+                      <SelectItem value="home">home</SelectItem>
+                      <SelectItem value="other">other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="col-span-1 flex items-end">
+                  <button title="Remove" onClick={() => removePhoneRow(i)} className="p-2 text-red-400 hover:text-red-300">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+
+                <div className="col-span-12">
+                  <Label>Note</Label>
+                  <Input
+                    value={p.note ?? ""}
+                    onChange={(e) => updatePhoneRow(i, "note", e.target.value)}
+                    placeholder="Optional note"
+                    className="bg-black/30 border-gray-700"
+                  />
+                </div>
+              </div>
+            ))}
+
+            <div>
+              <Button variant="ghost" onClick={addPhoneRow} className="text-gray-300">
+                <Plus size={14} /> Add another phone
+              </Button>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <div className="flex gap-2 w-full">
+              <Button variant="ghost" onClick={() => { setOpenPhone(false); setSelectedSupplierForPhone(null); }}>Cancel</Button>
+              <Button className="ml-auto bg-gradient-to-r from-green-400 to-green-500 text-black" onClick={handleSavePhones}>
+                <Check size={14} /> &nbsp; Save Phones
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
