@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
-  Beer, Coffee, Users, Home, Box, Truck, DollarSign, LogOut, Layers
+  Beer, Coffee, Users, Home, Box, Truck, DollarSign, Layers, CreditCard
 } from "lucide-react";
 
 const menuItems = [
@@ -16,6 +16,7 @@ const menuItems = [
   { name: "Suppliers", icon: Truck, href: "/suppliers" },
   { name: "Sales", icon: DollarSign, href: "/sales" },
   { name: "Orders", icon: Box, href: "/orders" },
+  { name: "Expenses", icon: CreditCard, href: "/expenses" }, // new
 ];
 
 export default function Sidebar() {
@@ -63,20 +64,9 @@ export default function Sidebar() {
         </nav>
       </div>
 
-      {/* Logout */}
-      <div className="pt-6 border-t border-gray-800">
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-gray-800/40 text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded-xl transition-all"
-        >
-          <LogOut className="w-5 h-5" />
-          Logout
-        </motion.button>
-
-        <p className="text-xs text-gray-500 text-center mt-4">
-          © 2025 PlusMe ERP
-        </p>
-      </div>
+      <p className="text-xs text-gray-500 text-center mt-4">
+        © 2025 PlusMe ERP
+      </p>
     </motion.aside>
   );
 }

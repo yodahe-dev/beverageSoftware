@@ -8,7 +8,6 @@ datasource db {
   shadowDatabaseUrl = "postgresql://yodahe:0000@localhost:5000/bevflow_shadow"
 }
 
-
 /// =======================================
 /// 🌍 MODELS (Full ERP for multi-store beverage suppliers)
 /// =======================================
@@ -58,7 +57,7 @@ model Customer {
   type       CustomerType  @default(individual)
   note       String?
   isActive   Boolean       @default(true)
-  phones     Phone[]       @relation("CustomerPhones")
+  phones     CustomerPhone[]
   sales      Sales[]
   credits    Credit[]
   orders     Order[]
@@ -81,21 +80,30 @@ enum CustomerType {
 
 /// ----------------------------------
 
-model Phone {
-  id             String     @id @default(uuid())
-  phoneNumber    String
-  contactName    String?
-  type           PhoneType  @default(mobile)
-  note           String?
-  phoneableType  String
-  phoneableId    String
-  customer       Customer?  @relation("CustomerPhones", fields: [phoneableId], references: [id], map: "Phone_Customer_fkey")
-  supplier       Supplier?  @relation("SupplierPhones", fields: [phoneableId], references: [id], map: "Phone_Supplier_fkey")
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-
-  @@index([phoneNumber])
+model CustomerPhone {
+  id          String    @id @default(uuid())
+  customerId  String
+  phoneNumber String
+  contactName String?
+  type        PhoneType @default(mobile)
+  note        String?
+  customer    Customer  @relation(fields: [customerId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
+
+model SupplierPhone {
+  id         String    @id @default(uuid())
+  supplierId String
+  phoneNumber String
+  contactName String?
+  type        PhoneType @default(mobile)
+  note        String?
+  supplier    Supplier  @relation(fields: [supplierId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
 
 enum PhoneType {
   mobile
@@ -138,8 +146,8 @@ model SubBrand {
   brand      Brand      @relation(fields: [brandId], references: [id])
   products   Product[]
   saleItems  SaleItem[]
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
   deletedAt  DateTime?
 
   @@unique([name, brandId])
@@ -150,7 +158,7 @@ model SubBrand {
 model Product {
   id         String     @id @default(uuid())
   name       String
-  price      Decimal    @db.Decimal(12, 2)   // Can keep this as base price if needed
+  price      Decimal    @db.Decimal(12, 2)
   quantity   Int        @default(0)
   sellPrice  Decimal?   @db.Decimal(12, 2)
   costPrice  Decimal?   @db.Decimal(12, 2)
@@ -172,21 +180,20 @@ enum ProductCategory {
   both
 }
 
-
 /// ----------------------------------
 
 model Supplier {
-  id         String    @id @default(uuid())
+  id         String     @id @default(uuid())
   storeId    String
   name       String
   email      String?
   location   String
   note       String?
   brands     Brand[]
-  phones     Phone[]   @relation("SupplierPhones")
-  store      Store     @relation(fields: [storeId], references: [id])
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  phones     SupplierPhone[]
+  store      Store      @relation(fields: [storeId], references: [id])
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
   deletedAt  DateTime?
 }
 
@@ -216,6 +223,7 @@ enum ExpenseCategory {
 model Sales {
   id             String       @id @default(uuid())
   reference      String       @unique @default(cuid())
+  name           String?      // optional name added
   totalAmount    Decimal      @db.Decimal(12, 2) @default(0)
   paymentMethod  PaymentMethod
   status         SaleStatus   @default(pending)
@@ -329,7 +337,7 @@ model Order {
   customer        Customer?    @relation(fields: [customerId], references: [id])
   sale            Sales        @relation(fields: [salesId], references: [id])
   createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  updatedAt       DateTime     @default(now())
   deletedAt       DateTime?
 
   @@index([status])

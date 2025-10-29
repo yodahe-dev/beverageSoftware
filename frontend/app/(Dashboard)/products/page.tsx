@@ -71,7 +71,7 @@ export default function ProductPage() {
   // Fetch SubBrands
   const fetchSubBrands = async (q = "") => {
     try {
-      const res = await axios.get(`/api/subbrands?search=${q}`);
+      const res = await axios.get(`/api/brands/subbrands?search=${q}`);
       const data = Array.isArray(res.data) ? res.data : res.data.subbrands || [];
       setSubbrands(data);
     } catch (err) {

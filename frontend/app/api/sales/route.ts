@@ -27,17 +27,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to create sale" }, { status: 500 });
   }
 }
-
-/**
- * GET SALES (read + filter + search)
- * Query params supported:
- * - search: string
- * - status: string
- * - paymentMethod: string
- * - customerType: string
- * - minTotal: number
- * - maxTotal: number
- */
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);

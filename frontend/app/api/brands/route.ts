@@ -1,16 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient, BrandType } from "@prisma/client";
+import { PrismaClient, BrandType, Prisma } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-// GET: fetch brands with optional search, type, pagination
+const json = (data: any, status = 200) => NextResponse.json(data, { status });
+
+/**
+ * GET /api/brands
+ *  - supports search, type, pagination
+ */
 export async function GET(req: NextRequest) {
   try {
     const params = Object.fromEntries(req.nextUrl.searchParams.entries());
     const { search, type, page = "1", limit = "20" } = params;
 
-    const pageNum = Math.max(parseInt(page, 10) || 1, 1);
-    const limitNum = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+    const pageNum = Math.max(parseInt(page as string, 10) || 1, 1);
+    const limitNum = Math.min(Math.max(parseInt(limit as string, 10) || 20, 1), 100);
 
     const filters: any = {};
     if (type && Object.values(BrandType).includes(type as BrandType)) {
@@ -28,38 +33,62 @@ export async function GET(req: NextRequest) {
       skip: (pageNum - 1) * limitNum,
       take: limitNum,
       orderBy: { createdAt: "desc" },
+      include: { store: true },
     });
 
-    return NextResponse.json({ total, page: pageNum, limit: limitNum, brands });
+    return json({ total, page: pageNum, limit: limitNum, brands });
   } catch (err: any) {
     console.error("GET /brands error:", err);
-    return NextResponse.json({ message: "Failed to fetch brands" }, { status: 500 });
+    return json({ message: "Failed to fetch brands" }, 500);
   }
 }
 
-// POST: create a new brand (must provide storeId)
+/**
+ * POST /api/brands
+ *  - requires: name, type, storeId
+ *  - optional: note
+ *
+ * Using BrandUncheckedCreateInput so we can pass storeId directly (type-safe).
+ */
 export async function POST(req: NextRequest) {
   try {
-    const { name, type, note, storeId } = await req.json();
+    const body = await req.json();
+    const name = String(body?.name ?? "").trim();
+    const type = body?.type;
+    const note = body?.note ?? null;
+    const storeId = body?.storeId;
 
-    if (!name) return NextResponse.json({ message: "Brand name required" }, { status: 400 });
-    if (!type || !Object.values(BrandType).includes(type)) {
-      return NextResponse.json({ message: "Invalid brand type" }, { status: 400 });
+    if (!name) {
+      return json({ message: "Brand name required" }, 400);
     }
-    if (!storeId) return NextResponse.json({ message: "storeId is required" }, { status: 400 });
 
+    if (!type || !Object.values(BrandType).includes(type as BrandType)) {
+      return json({ message: "Invalid brand type" }, 400);
+    }
+
+    if (!storeId) {
+      return json({ message: "storeId is required" }, 400);
+    }
+
+    // Ensure store exists
+    const storeExists = await prisma.store.findUnique({ where: { id: storeId } });
+    if (!storeExists) {
+      return json({ message: "storeId does not exist" }, 400);
+    }
+
+    // Use unchecked create input to set storeId directly (keeps TS happy)
     const brand = await prisma.brand.create({
       data: {
         name,
         type,
         note,
-        store: { connect: { id: storeId } }, // connect to existing store
-      },
+        storeId,
+      } as Prisma.BrandUncheckedCreateInput,
     });
 
-    return NextResponse.json(brand);
+    return json(brand, 201);
   } catch (err: any) {
     console.error("POST /brands error:", err);
-    return NextResponse.json({ message: "Failed to create brand" }, { status: 500 });
+    return json({ message: "Failed to create brand" }, 500);
   }
 }
