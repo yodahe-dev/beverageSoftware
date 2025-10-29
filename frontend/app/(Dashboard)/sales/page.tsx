@@ -243,8 +243,8 @@ export default function SalesPage() {
   const { toasts, add: addToast, remove: removeToast } = useToasts();
 
   // refs to avoid stale timers
-  const mountedRef = useRef(true);
-  const customerSearchRef = useRef<NodeJS.Timeout>();
+    const mountedRef = useRef(true);
+    const customerSearchRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -602,7 +602,11 @@ export default function SalesPage() {
       }
 
       addToast("Item updated successfully", "success");
-      setEditingItems(prev => ({ ...prev, [itemId]: undefined }));
+      setEditingItems(prev => {
+        const newItems = { ...prev };
+        delete newItems[itemId];
+        return newItems;
+      });
       await loadSales();
       
       // Refresh view items

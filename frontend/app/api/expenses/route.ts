@@ -1,36 +1,9 @@
-// app/api/expenses/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ExpenseCategory, Prisma } from "@prisma/client";
 
-/**
- * Robust Expenses API
- *
- * Supports:
- *  - POST /api/expenses         -> create single or multiple expenses
- *  - GET  /api/expenses         -> list expenses with search, filter, date-range, pagination, sorting
- *
- * Query params (GET):
- *  - search         string (searches title and note)
- *  - category       ExpenseCategory (home|work|both|other)
- *  - date_from      ISO date (inclusive)
- *  - date_to        ISO date (inclusive)
- *  - page           number (default 1)
- *  - limit          number (default 20)
- *  - sort_by        "createdAt" | "amount" (default createdAt)
- *  - sort_order     "asc" | "desc" (default desc)
- *
- * POST body:
- *  - single expense object:
- *      { title, amount, quantity?, category?, note? }
- *  - OR array of expense objects
- */
-
-const json = (data: any, status = 200) =>
-  NextResponse.json(data, { status });
-
-const errorResponse = (message: string, status = 400) =>
-  json({ error: message }, status);
+const json = (data: any, status = 200) => NextResponse.json(data, { status });
+const errorResponse = (message: string, status = 400) => json({ error: message }, status);
 
 type ExpenseInput = {
   title: string;
@@ -40,59 +13,40 @@ type ExpenseInput = {
   note?: string | null;
 };
 
-const isValidCategory = (c: any): c is ExpenseCategory => {
-  return ["home", "work", "both", "other"].includes(String(c));
-};
+const isValidCategory = (c: any): c is ExpenseCategory =>
+  ["home", "work", "both", "other"].includes(String(c));
 
-const parseNumber = (v: any): number | null => {
-  if (v === null || v === undefined) return null;
+const parseNumber = (v: any): number => {
+  if (v === null || v === undefined || v === "") return 0;
   if (typeof v === "number") return v;
   const n = Number(v);
-  return Number.isFinite(n) ? n : null;
+  return Number.isFinite(n) ? n : 0;
 };
 
-/** POST handler - create single or many expenses */
+/** POST - create single or multiple expenses */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-
-    // Normalize to array for uniform processing
     const items: ExpenseInput[] = Array.isArray(body) ? body : [body];
+    if (!items.length) return errorResponse("No expense data provided");
 
-    if (!items.length) return errorResponse("No expense data provided", 400);
-
-    // Validate each item
     const toCreate: Prisma.ExpenseCreateInput[] = [];
-    for (const [i, raw] of items.map((r, idx) => [r, idx] as any)) {
-      const idxLabel = Array.isArray(body) ? ` (index ${i})` : "";
-      if (!raw || typeof raw !== "object")
-        return errorResponse(`Invalid expense payload${idxLabel}`, 400);
 
-      const title = String(raw.title ?? "").trim();
-      if (!title) return errorResponse(`title is required${idxLabel}`, 400);
-
+    for (const raw of items) {
+      const title = String(raw.title ?? "").trim() || "Untitled";
       const amountNum = parseNumber(raw.amount);
-      if (amountNum === null || amountNum < 0)
-        return errorResponse(`amount is required and must be a non-negative number${idxLabel}`, 400);
-
-      const quantity = raw.quantity === undefined ? 1 : parseInt(String(raw.quantity), 10);
-      if (!Number.isInteger(quantity) || quantity <= 0)
-        return errorResponse(`quantity must be a positive integer${idxLabel}`, 400);
-
-      const category = raw.category ?? "other";
-      if (!isValidCategory(category))
-        return errorResponse(`invalid category (home|work|both|other)${idxLabel}`, 400);
+      const quantity = raw.quantity && Number.isInteger(Number(raw.quantity)) && Number(raw.quantity) > 0 ? Number(raw.quantity) : 1;
+      const category = isValidCategory(raw.category) ? raw.category : "other";
 
       toCreate.push({
         title,
         amount: new Prisma.Decimal(String(amountNum)),
         quantity,
-        category: category as ExpenseCategory,
-        note: raw.note ? String(raw.note) : null,
-      } as any); // Prisma.Decimal typed as any here for compile convenience
+        category,
+        note: raw.note ? String(raw.note).trim() : null,
+      } as any);
     }
 
-    // Create in a transaction (safe, returns created rows)
     const created: any[] = [];
     await prisma.$transaction(async (tx) => {
       for (const item of toCreate) {
@@ -108,7 +62,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/** GET handler - list / search / filter / paginate / sort */
+/** GET - list / search / filter / pagination / sort */
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
@@ -122,15 +76,9 @@ export async function GET(req: NextRequest) {
     const sortBy = (url.searchParams.get("sort_by") || "createdAt") as "createdAt" | "amount";
     const sortOrder = (url.searchParams.get("sort_order") || "desc") as "asc" | "desc";
 
-    // Build where clause
-    const where: Prisma.ExpenseWhereInput = {
-      deletedAt: null,
-    };
+    const where: Prisma.ExpenseWhereInput = { deletedAt: null };
 
-    if (categoryParam) {
-      if (!isValidCategory(categoryParam)) {
-        return errorResponse("Invalid category filter. Use: home|work|both|other", 400);
-      }
+    if (categoryParam && isValidCategory(categoryParam)) {
       where.category = categoryParam as ExpenseCategory;
     }
 
@@ -141,56 +89,31 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    // date filters
     if (dateFrom || dateTo) {
       where.createdAt = {};
       if (dateFrom) {
         const d = new Date(dateFrom);
-        if (isNaN(d.getTime())) return errorResponse("Invalid date_from", 400);
-        (where.createdAt as any).gte = d;
+        if (!isNaN(d.getTime())) (where.createdAt as any).gte = d;
       }
       if (dateTo) {
         const d = new Date(dateTo);
-        if (isNaN(d.getTime())) return errorResponse("Invalid date_to", 400);
-        // include the full day by moving to end of day
-        d.setHours(23, 59, 59, 999);
-        (where.createdAt as any).lte = d;
+        if (!isNaN(d.getTime())) {
+          d.setHours(23, 59, 59, 999);
+          (where.createdAt as any).lte = d;
+        }
       }
     }
 
-    const orderBy =
-      sortBy === "amount"
-        ? { amount: sortOrder }
-        : { createdAt: sortOrder }; // default createdAt
-
+    const orderBy = sortBy === "amount" ? { amount: sortOrder } : { createdAt: sortOrder };
     const [data, total] = await Promise.all([
-      prisma.expense.findMany({
-        where,
-        orderBy,
-        skip,
-        take: limit,
-      }),
+      prisma.expense.findMany({ where, orderBy, skip, take: limit }),
       prisma.expense.count({ where }),
     ]);
 
-    const totalPages = Math.ceil(total / limit) || 1;
-
     return json({
       data,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages,
-      },
-      filters: {
-        search: search ?? null,
-        category: categoryParam ?? null,
-        dateFrom: dateFrom ?? null,
-        dateTo: dateTo ?? null,
-        sortBy,
-        sortOrder,
-      },
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) || 1 },
+      filters: { search: search ?? null, category: categoryParam ?? null, dateFrom: dateFrom ?? null, dateTo: dateTo ?? null, sortBy, sortOrder },
     });
   } catch (err: any) {
     console.error("GET /api/expenses error:", err);
