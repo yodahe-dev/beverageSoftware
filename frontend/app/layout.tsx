@@ -1,8 +1,7 @@
-// app/layout.tsx
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Sidebar from "@/components/Sidebar"; // import your Sidebar
-import "./globals.css";
+import Sidebar from "@/app/common/components/Sidebar"; // import your Sidebar
+import "@/globals.css";
 
 export const metadata: Metadata = {
   title: "Beverage Business",

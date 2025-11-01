@@ -27,15 +27,14 @@ export async function PATCH(
   }
 }
 
-// DELETE: soft delete a brand by ID
+// DELETE: permanently delete a brand by ID
 export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const brand = await prisma.brand.update({
+    const brand = await prisma.brand.delete({
       where: { id: params.id },
-      data: { deletedAt: new Date() },
     });
 
     return NextResponse.json(brand);

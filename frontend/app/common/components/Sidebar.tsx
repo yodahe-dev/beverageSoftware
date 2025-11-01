@@ -1,26 +1,36 @@
-'use client';
+'use client'
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { motion } from 'framer-motion'
 import {
-  Beer, Coffee, Users, Home, Box, Truck, DollarSign, Layers, CreditCard
-} from "lucide-react";
+  Beer,
+  Coffee,
+  Users,
+  Home,
+  Box,
+  Truck,
+  DollarSign,
+  Layers,
+  CreditCard,
+  Award,
+} from 'lucide-react'
 
 const menuItems = [
-  { name: "Dashboard", icon: Home, href: "/" },
-  { name: "Stores", icon: Layers, href: "/stores" },
-  { name: "Customers", icon: Users, href: "/customers" },
-  { name: "Brands", icon: Beer, href: "/brands" },
-  { name: "Products", icon: Coffee, href: "/products" },
-  { name: "Suppliers", icon: Truck, href: "/suppliers" },
-  { name: "Sales", icon: DollarSign, href: "/sales" },
-  { name: "Orders", icon: Box, href: "/orders" },
-  { name: "Expenses", icon: CreditCard, href: "/expenses" }, // new
-];
+  { name: 'Dashboard', icon: Home, href: '/' },
+  { name: 'Stores', icon: Layers, href: '/stores' },
+  { name: 'Customers', icon: Users, href: '/customers' },
+  { name: 'Brands', icon: Beer, href: '/brands' },
+  { name: 'Products', icon: Coffee, href: '/products' },
+  { name: 'Suppliers', icon: Truck, href: '/suppliers' },
+  { name: 'Sales', icon: DollarSign, href: '/sales' },
+  { name: 'Orders', icon: Box, href: '/orders' },
+  { name: 'Expenses', icon: CreditCard, href: '/expenses' },
+  { name: 'Credits', icon: Award, href: '/credits' },
+]
 
 export default function Sidebar() {
-  const pathname = usePathname();
+  const pathname = usePathname()
 
   return (
     <motion.aside
@@ -40,15 +50,16 @@ export default function Sidebar() {
         {/* Navigation */}
         <nav className="flex flex-col gap-2">
           {menuItems.map(({ name, icon: Icon, href }) => {
-            const active = pathname === href;
+            const active = pathname === href
             return (
               <Link key={name} href={href} className="group relative">
                 <motion.div
                   whileHover={{ scale: 1.05, x: 4 }}
                   className={`flex items-center gap-3 px-4 py-2 rounded-xl transition-all cursor-pointer
-                    ${active
-                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
-                      : "text-gray-300 hover:bg-gray-800/50 hover:text-white"
+                    ${
+                      active
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                        : 'text-gray-300 hover:bg-gray-800/50 hover:text-white'
                     }`}
                 >
                   <Icon className="w-5 h-5" />
@@ -59,14 +70,12 @@ export default function Sidebar() {
                   {name}
                 </span>
               </Link>
-            );
+            )
           })}
         </nav>
       </div>
 
-      <p className="text-xs text-gray-500 text-center mt-4">
-        © 2025 PlusMe ERP
-      </p>
+      <p className="text-xs text-gray-500 text-center mt-4">© 2025 Bevflow ERP</p>
     </motion.aside>
-  );
+  )
 }
