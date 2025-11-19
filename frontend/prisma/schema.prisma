@@ -8,10 +8,6 @@ datasource db {
   shadowDatabaseUrl = "postgresql://yodahe:0000@localhost:5000/bevflow_shadow"
 }
 
-/// =======================================
-/// 🌍 MODELS (Full ERP for multi-store beverage suppliers)
-/// =======================================
-
 model User {
   id        String   @id @default(uuid())
   name      String
@@ -31,7 +27,7 @@ enum UserRole {
   staff
 }
 
-/// ----------------------------------
+
 
 model Store {
   id         String    @id @default(uuid())
@@ -47,7 +43,7 @@ model Store {
   deletedAt  DateTime?
 }
 
-/// ----------------------------------
+
 
 model Customer {
   id         String        @id @default(uuid())
@@ -78,7 +74,7 @@ enum CustomerType {
   other
 }
 
-/// ----------------------------------
+
 
 model CustomerPhone {
   id          String    @id @default(uuid())
@@ -112,7 +108,7 @@ enum PhoneType {
   other
 }
 
-/// ----------------------------------
+
 
 model Brand {
   id         String      @id @default(uuid())
@@ -136,7 +132,7 @@ enum BrandType {
   other
 }
 
-/// ----------------------------------
+
 
 model SubBrand {
   id         String     @id @default(uuid())
@@ -153,7 +149,7 @@ model SubBrand {
   @@unique([name, brandId])
 }
 
-/// ----------------------------------
+
 
 model Product {
   id         String     @id @default(uuid())
@@ -180,7 +176,7 @@ enum ProductCategory {
   both
 }
 
-/// ----------------------------------
+
 
 model Supplier {
   id         String     @id @default(uuid())
@@ -197,7 +193,7 @@ model Supplier {
   deletedAt  DateTime?
 }
 
-/// ----------------------------------
+
 
 model Expense {
   id         String     @id @default(uuid())
@@ -218,7 +214,7 @@ enum ExpenseCategory {
   other
 }
 
-/// ----------------------------------
+
 
 model Sales {
   id             String       @id @default(uuid())
@@ -255,7 +251,7 @@ enum SaleStatus {
   partially_paid
 }
 
-/// ----------------------------------
+
 
 model SaleItem {
   id           String     @id @default(uuid())
@@ -285,7 +281,7 @@ enum SaleCategory {
   both
 }
 
-/// ----------------------------------
+
 
 model Credit {
   id            String       @id @default(uuid())
@@ -320,7 +316,7 @@ enum CreditStatus {
   overdue
 }
 
-/// ----------------------------------
+
 
 model Order {
   id              String       @id @default(uuid())

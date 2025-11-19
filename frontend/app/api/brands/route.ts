@@ -9,6 +9,7 @@ const json = (data: any, status = 200) => NextResponse.json(data, { status });
  * GET /api/brands
  *  - supports search, type, pagination
  */
+
 export async function GET(req: NextRequest) {
   try {
     const params = Object.fromEntries(req.nextUrl.searchParams.entries());
@@ -49,7 +50,8 @@ export async function GET(req: NextRequest) {
  *  - optional: note
  *
  * Using BrandUncheckedCreateInput so we can pass storeId directly (type-safe).
- */
+*/
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
